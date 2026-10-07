@@ -1,0 +1,425 @@
+@page "/dashboard/admin"
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Admin Dashboard - Dr Majoko Projects</PageTitle>
+
+<div class="mb-4">
+    <h2><i class="bi bi-speedometer2 me-2"></i>Admin Dashboard</h2>
+    <p class="text-muted">Overview of your property management operations</p>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading dashboard data...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (dashboardData != null)
+{
+    <!-- Key Metrics Row 1 -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-primary text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Properties</h6>
+                            <h3 class="mb-0">@dashboardData.TotalProperties</h3>
+                            <small>@dashboardData.AvailableProperties available</small>
+                        </div>
+                        <i class="bi bi-building" style="font-size: 3rem; opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-success text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Occupancy Rate</h6>
+                            <h3 class="mb-0">@dashboardData.OccupancyRate.ToString("F1")%</h3>
+                            <small>@dashboardData.OccupiedProperties / @dashboardData.TotalProperties units</small>
+                        </div>
+                        <i class="bi bi-graph-up-arrow" style="font-size: 3rem; opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-info text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Monthly Rent</h6>
+                            <h3 class="mb-0">R @dashboardData.TotalMonthlyRent.ToString("N0")</h3>
+                            <small>from @dashboardData.ActiveLeases active leases</small>
+                        </div>
+                        <i class="bi bi-currency-dollar" style="font-size: 3rem; opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card bg-warning text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Outstanding Rent</h6>
+                            <h3 class="mb-0">R @dashboardData.TotalOutstandingRent.ToString("N0")</h3>
+                            <small>@dashboardData.UnpaidInvoices unpaid invoices</small>
+                        </div>
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row 2 -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Expiring Leases (60 days)</h6>
+                    <h4 class="mb-0 text-danger">@dashboardData.ExpiringLeases</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Collection Rate</h6>
+                    <h4 class="mb-0 text-success">@dashboardData.CollectionRate.ToString("F1")%</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Pending Applications</h6>
+                    <h4 class="mb-0 text-warning">@dashboardData.PendingApplications</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Pending Maintenance</h6>
+                    <h4 class="mb-0 text-danger">@dashboardData.PendingMaintenanceRequests</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Property Performance -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Property Performance (Net Income)</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Property</th>
+                                    <th>Monthly Rent</th>
+                                    <th>Maintenance</th>
+                                    <th>Net Income</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var property in dashboardData.PropertyPerformance.Take(5))
+                                {
+                                    <tr>
+                                        <td>
+                                            <a href="/properties/details/@property.PropertyId">
+                                                @property.PropertyName
+                                            </a>
+                                        </td>
+                                        <td>R @property.MonthlyRent.ToString("N2")</td>
+                                        <td class="text-danger">R @property.MaintenanceCosts.ToString("N2")</td>
+                                        <td class="fw-bold text-success">R @property.NetIncome.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Recent Activity</h5>
+                    <div class="activity-feed" style="max-height: 400px; overflow-y: auto;">
+                        @foreach (var activity in dashboardData.RecentActivities)
+                        {
+                            <div class="activity-item mb-3 pb-3 border-bottom">
+                                <div class="d-flex align-items-start">
+                                    <i class="@activity.Icon text-@activity.Color me-3" style="font-size: 1.5rem;"></i>
+                                    <div class="flex-grow-1">
+                                        <p class="mb-1">@activity.Description</p>
+                                        <small class="text-muted">@activity.Date.ToString("MMM dd, yyyy HH:mm")</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Maintenance Statistics</h5>
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3 mb-3">
+                            <h6 class="text-muted">Pending</h6>
+                            <h3 class="text-danger">@dashboardData.PendingMaintenanceRequests</h3>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <h6 class="text-muted">In Progress</h6>
+                            <h3 class="text-warning">@dashboardData.InProgressMaintenanceRequests</h3>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <h6 class="text-muted">Resolved This Month</h6>
+                            <h3 class="text-success">@dashboardData.ResolvedMaintenanceThisMonth</h3>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <h6 class="text-muted">Avg. Resolution Time</h6>
+                            <h3 class="text-info">@dashboardData.AverageResolutionTime.ToString("F1") days</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private AdminDashboardViewModel? dashboardData;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            var now = DateTime.UtcNow;
+            var firstDayOfMonth = new DateTime(now.Year, now.Month, 1);
+
+            // Make parallel API calls to fetch all data (same as webapp)
+            var propertiesTask = ApiClient.GetAsync<List<PropertyListDto>>("/api/properties");
+            var leasesTask = ApiClient.GetAsync<List<LeaseDto>>("/api/leases");
+            var invoicesTask = ApiClient.GetAsync<List<InvoiceDto>>("/api/invoices");
+            var applicationsTask = ApiClient.GetAsync<List<RentalApplicationDto>>("/api/applications");
+            var maintenanceTask = ApiClient.GetAsync<List<MaintenanceRequestDto>>("/api/maintenance");
+
+            await Task.WhenAll(propertiesTask, leasesTask, invoicesTask, applicationsTask, maintenanceTask);
+
+            var properties = await propertiesTask ?? new List<PropertyListDto>();
+            var leases = await leasesTask ?? new List<LeaseDto>();
+            var invoices = await invoicesTask ?? new List<InvoiceDto>();
+            var applications = await applicationsTask ?? new List<RentalApplicationDto>();
+            var maintenance = await maintenanceTask ?? new List<MaintenanceRequestDto>();
+
+            // Debug logging
+            Console.WriteLine($"Dashboard Data Loaded:");
+            Console.WriteLine($"  Properties: {properties.Count}");
+            Console.WriteLine($"  Leases: {leases.Count}");
+            Console.WriteLine($"  Invoices: {invoices.Count}");
+            Console.WriteLine($"  Applications: {applications.Count}");
+            Console.WriteLine($"  Maintenance: {maintenance.Count}");
+
+            // Calculate all metrics (same logic as webapp)
+            var totalProperties = properties.Count;
+            var availableProperties = properties.Count(p => p.Status == PropertyStatus.Available);
+            var occupiedProperties = properties.Count(p => p.Status == PropertyStatus.Occupied);
+            var occupancyRate = totalProperties > 0 ? (double)occupiedProperties / totalProperties * 100 : 0;
+
+            var activeLeases = leases.Count(l => l.Status == LeaseStatus.Active);
+            var expiringLeases = leases.Count(l => l.Status == LeaseStatus.Active && l.EndDate <= now.AddDays(60) && l.EndDate > now);
+
+            var totalMonthlyRent = (double)leases.Where(l => l.Status == LeaseStatus.Active).Sum(l => l.MonthlyRent);
+            var unpaidInvoices = invoices.Where(i => i.Status != PaymentStatus.Paid).ToList();
+            var totalOutstandingRent = (double)unpaidInvoices.Sum(i => i.AmountDue);
+
+            var totalInvoiced = invoices.Sum(i => i.Amount);
+            var totalPaid = invoices.Sum(i => i.AmountPaid);
+            var collectionRate = totalInvoiced > 0 ? (totalPaid / totalInvoiced) * 100 : 0;
+
+            var pendingApplications = applications.Count(a => a.Status == ApplicationStatus.Submitted);
+
+            var pendingMaintenance = maintenance.Count(m => m.Status == MaintenanceStatus.Pending);
+            var inProgressMaintenance = maintenance.Count(m => m.Status == MaintenanceStatus.InProgress);
+            var resolvedThisMonth = maintenance.Count(m => m.Status == MaintenanceStatus.Resolved && m.CompletedDate >= firstDayOfMonth);
+
+            var resolvedRequests = maintenance.Where(m => m.Status == MaintenanceStatus.Resolved && m.CompletedDate.HasValue).ToList();
+            var avgResolutionTime = resolvedRequests.Any()
+                ? resolvedRequests.Average(m => (m.CompletedDate!.Value - m.ReportedDate).TotalDays)
+                : 0;
+
+            // Property performance
+            var propertyPerformance = properties.Select(p =>
+            {
+                var propertyLeases = leases.Where(l => l.PropertyId == p.Id && l.Status == LeaseStatus.Active).ToList();
+                var propertyMaintenance = maintenance.Where(m => m.PropertyId == p.Id).ToList();
+
+                var monthlyRent = (double)propertyLeases.Sum(l => l.MonthlyRent);
+                var maintenanceCosts = (double)propertyMaintenance.Sum(m => m.ActualCost ?? 0);
+
+                return new PropertyPerformanceDto
+                {
+                    PropertyId = p.Id,
+                    PropertyName = p.Name,
+                    MonthlyRent = monthlyRent,
+                    MaintenanceCosts = maintenanceCosts,
+                    NetIncome = (monthlyRent * 12) - maintenanceCosts
+                };
+            }).OrderByDescending(p => p.NetIncome).Take(5).ToList();
+
+            // Recent activities
+            var recentActivities = new List<ActivityDto>();
+
+            var allPayments = invoices.SelectMany(i => i.Payments ?? new List<PaymentDto>()).ToList();
+            var recentPayments = allPayments.OrderByDescending(p => p.PaymentDate).Take(3).ToList();
+            recentActivities.AddRange(recentPayments.Select(p => new ActivityDto
+            {
+                Description = $"{p.TenantName} paid R{p.Amount:N2}",
+                Date = p.PaymentDate,
+                Icon = "bi-currency-dollar",
+                Color = "success"
+            }));
+
+            var recentMaintenance = maintenance.OrderByDescending(m => m.ReportedDate).Take(4).ToList();
+            recentActivities.AddRange(recentMaintenance.Select(m => new ActivityDto
+            {
+                Description = $"Maintenance: {m.Title}",
+                Date = m.ReportedDate,
+                Icon = "bi-tools",
+                Color = m.Status == MaintenanceStatus.Resolved ? "success" : "warning"
+            }));
+
+            var recentApplications = applications.OrderByDescending(a => a.ApplicationDate).Take(3).ToList();
+            recentActivities.AddRange(recentApplications.Select(a => new ActivityDto
+            {
+                Description = $"New application for {a.PropertyName}",
+                Date = a.ApplicationDate,
+                Icon = "bi-file-earmark-text",
+                Color = "info"
+            }));
+
+            recentActivities = recentActivities.OrderByDescending(a => a.Date).Take(10).ToList();
+
+            // Build dashboard view model
+            dashboardData = new AdminDashboardViewModel
+            {
+                TotalProperties = totalProperties,
+                AvailableProperties = availableProperties,
+                OccupiedProperties = occupiedProperties,
+                OccupancyRate = occupancyRate,
+                TotalMonthlyRent = totalMonthlyRent,
+                ActiveLeases = activeLeases,
+                TotalOutstandingRent = totalOutstandingRent,
+                UnpaidInvoices = unpaidInvoices.Count,
+                ExpiringLeases = expiringLeases,
+                CollectionRate = collectionRate,
+                PendingApplications = pendingApplications,
+                PendingMaintenanceRequests = pendingMaintenance,
+                InProgressMaintenanceRequests = inProgressMaintenance,
+                ResolvedMaintenanceThisMonth = resolvedThisMonth,
+                AverageResolutionTime = avgResolutionTime,
+                PropertyPerformance = propertyPerformance,
+                RecentActivities = recentActivities
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Unable to connect to the server: {ex.Message}. Make sure the API is running at https://localhost:7158";
+            Console.WriteLine($"HTTP Error: {ex}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading dashboard: {ex.Message}";
+            Console.WriteLine($"Dashboard Error: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class AdminDashboardViewModel
+    {
+        public int TotalProperties { get; set; }
+        public int AvailableProperties { get; set; }
+        public int OccupiedProperties { get; set; }
+        public int UnderMaintenanceProperties { get; set; }
+        public double OccupancyRate { get; set; }
+        public double TotalMonthlyRent { get; set; }
+        public int ActiveLeases { get; set; }
+        public double TotalOutstandingRent { get; set; }
+        public int UnpaidInvoices { get; set; }
+        public int ExpiringLeases { get; set; }
+        public double CollectionRate { get; set; }
+        public int PendingApplications { get; set; }
+        public int PendingMaintenanceRequests { get; set; }
+        public int InProgressMaintenanceRequests { get; set; }
+        public int ResolvedMaintenanceThisMonth { get; set; }
+        public double AverageResolutionTime { get; set; }
+        public List<PropertyPerformanceDto> PropertyPerformance { get; set; } = new();
+        public List<ActivityDto> RecentActivities { get; set; } = new();
+        public List<MonthlyRevenueDto> MonthlyRevenue { get; set; } = new();
+    }
+
+    public class PropertyPerformanceDto
+    {
+        public long PropertyId { get; set; }
+        public string PropertyName { get; set; } = "";
+        public double MonthlyRent { get; set; }
+        public double MaintenanceCosts { get; set; }
+        public double NetIncome { get; set; }
+    }
+
+    public class ActivityDto
+    {
+        public string Description { get; set; } = "";
+        public DateTime Date { get; set; }
+        public string Icon { get; set; } = "bi bi-circle-fill";
+        public string Color { get; set; } = "primary";
+    }
+
+    public class MonthlyRevenueDto
+    {
+        public string Month { get; set; } = "";
+        public double ExpectedRevenue { get; set; }
+        public double ActualRevenue { get; set; }
+    }
+}

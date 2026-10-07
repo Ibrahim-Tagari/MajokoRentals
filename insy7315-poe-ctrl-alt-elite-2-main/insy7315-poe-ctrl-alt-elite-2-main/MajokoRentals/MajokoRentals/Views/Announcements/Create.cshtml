@@ -1,0 +1,129 @@
+@model MajokoRentals.Core.DTOs.CreateAnnouncementRequest
+
+@{
+    ViewData["Title"] = "Create Announcement";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card shadow">
+                <div class="card-header bg-primary" style="background-color: var(--accent-gold) !important;">
+                    <h4 class="mb-0" style="color: var(--primary-bg);">
+                        <i class="bi bi-megaphone me-2"></i>Create Broadcast Announcement
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label asp-for="Title" class="form-label">Title</label>
+                                <input asp-for="Title" class="form-control" placeholder="E.g., Water Shutdown Notice" />
+                                <span asp-validation-for="Title" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="Type" class="form-label">Type</label>
+                                <select asp-for="Type" class="form-select" asp-items="Html.GetEnumSelectList<MajokoRentals.Core.Models.AnnouncementType>()"></select>
+                                <span asp-validation-for="Type" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Content" class="form-label">Message</label>
+                            <textarea asp-for="Content" class="form-control" rows="6"
+                                      placeholder="Enter your announcement message..."></textarea>
+                            <span asp-validation-for="Content" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Priority" class="form-label">Priority</label>
+                                <select asp-for="Priority" class="form-select" asp-items="Html.GetEnumSelectList<MajokoRentals.Core.Models.AnnouncementPriority>()"></select>
+                                <span asp-validation-for="Priority" class="text-danger"></span>
+                                <small class="form-text text-muted">Urgent announcements will appear at the top</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="ExpiryDate" class="form-label">Expiry Date (Optional)</label>
+                                <input asp-for="ExpiryDate" type="datetime-local" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                                <span asp-validation-for="ExpiryDate" class="text-danger"></span>
+                                <small class="form-text text-muted">Leave blank for no expiry</small>
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3">Target Audience</h5>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    <input asp-for="ForAllTenants" class="form-check-input" type="checkbox" />
+                                    <label asp-for="ForAllTenants" class="form-check-label">
+                                        All Tenants
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    <input asp-for="ForAllCaretakers" class="form-check-input" type="checkbox" />
+                                    <label asp-for="ForAllCaretakers" class="form-check-label">
+                                        All Caretakers
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check">
+                                    <input asp-for="ForAllManagers" class="form-check-input" type="checkbox" />
+                                    <label asp-for="ForAllManagers" class="form-check-label">
+                                        All Managers
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Target Specific Properties (Optional)</label>
+                            <select asp-for="TargetPropertyIds" class="form-select" multiple size="5">
+                                @if (ViewBag.Properties != null)
+                                {
+                                    @foreach (var property in (List<MajokoRentals.Controllers.AnnouncementsController.PropertyListDto>)ViewBag.Properties)
+                                    {
+                                        <option value="@property.Id">@property.Name - @property.Address</option>
+                                    }
+                                }
+                            </select>
+                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple properties. Leave blank to target all properties.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ImageUrl" class="form-label">Image URL (Optional)</label>
+                            <input asp-for="ImageUrl" class="form-control" placeholder="https://example.com/image.jpg" />
+                            <span asp-validation-for="ImageUrl" class="text-danger"></span>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-megaphone me-1"></i>Create Announcement
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -1,0 +1,315 @@
+@page "/leases/details/{id}"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager,Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>@(lease?.PropertyName ?? "Lease Details") - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </button>
+    <AuthorizeView Roles="Admin,PropertyManager">
+        <Authorized>
+            <a href="/leases/edit/@Id" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+            @if (lease?.Status == LeaseStatus.Active)
+            {
+                <button class="btn btn-warning" @onclick="() => ShowRenewDialog()">
+                    <i class="bi bi-arrow-repeat me-1"></i>Renew
+                </button>
+                <button class="btn btn-danger" @onclick="() => ShowTerminateDialog()">
+                    <i class="bi bi-x-circle me-1"></i>Terminate
+                </button>
+            }
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading lease details...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (lease != null)
+{
+    <!-- Status Badge -->
+    <div class="mb-3">
+        <span class="badge bg-@GetStatusBadgeClass(lease.Status) fs-6">
+            @lease.Status
+        </span>
+    </div>
+
+    <!-- Property & Tenant Info -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h4 class="card-title">@lease.PropertyName</h4>
+            <p class="text-muted mb-3">
+                <i class="bi bi-geo-alt me-1"></i>@lease.PropertyAddress
+            </p>
+            <p class="mb-0">
+                <strong>Tenant:</strong> @lease.TenantName
+            </p>
+        </div>
+    </div>
+
+    <!-- Lease Terms -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Lease Terms</h5>
+            <div class="row g-3">
+                <div class="col-6">
+                    <p class="mb-1"><strong>Start Date</strong></p>
+                    <p>@lease.StartDate.ToString("dd MMMM yyyy")</p>
+                </div>
+                <div class="col-6">
+                    <p class="mb-1"><strong>End Date</strong></p>
+                    <p>@lease.EndDate.ToString("dd MMMM yyyy")</p>
+                </div>
+                <div class="col-6">
+                    <p class="mb-1"><strong>Monthly Rent</strong></p>
+                    <p class="text-primary fs-5">R @lease.MonthlyRent.ToString("N2")</p>
+                </div>
+                <div class="col-6">
+                    <p class="mb-1"><strong>Security Deposit</strong></p>
+                    <p class="fs-5">R @lease.SecurityDeposit.ToString("N2")</p>
+                </div>
+                <div class="col-12">
+                    <p class="mb-1"><strong>Duration</strong></p>
+                    <p>@GetLeaseDuration() (@GetDaysRemaining())</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dates -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Important Dates</h5>
+            <p class="small mb-1"><strong>Created:</strong> @lease.CreatedAt.ToString("dd MMM yyyy HH:mm")</p>
+            @if (lease.UpdatedAt.HasValue)
+            {
+                <p class="small mb-0"><strong>Last Updated:</strong> @lease.UpdatedAt.Value.ToString("dd MMM yyyy HH:mm")</p>
+            }
+        </div>
+    </div>
+}
+
+<!-- Renew Dialog -->
+@if (showRenewDialog)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Renew Lease</h5>
+                    <button type="button" class="btn-close" @onclick="CloseRenewDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to renew this lease?</p>
+                    <div class="mb-3">
+                        <label class="form-label">New End Date</label>
+                        <input type="date" @bind="renewEndDate" class="form-control" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseRenewDialog">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="HandleRenew" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Renew
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Terminate Dialog -->
+@if (showTerminateDialog)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Terminate Lease</h5>
+                    <button type="button" class="btn-close" @onclick="CloseTerminateDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger">Are you sure you want to terminate this lease? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseTerminateDialog">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="HandleTerminate" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Terminate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    private LeaseDto? lease;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private bool showRenewDialog = false;
+    private bool showTerminateDialog = false;
+    private DateTime? renewEndDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLeaseDetails();
+    }
+
+    private async Task LoadLeaseDetails()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            lease = await ApiClient.GetAsync<LeaseDto>($"/api/leases/{Id}");
+
+            if (lease == null)
+            {
+                errorMessage = "Lease not found.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading lease details: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/leases");
+    }
+
+    private string GetStatusBadgeClass(LeaseStatus status)
+    {
+        return status switch
+        {
+            LeaseStatus.Draft => "secondary",
+            LeaseStatus.Active => "success",
+            LeaseStatus.Expired => "warning",
+            LeaseStatus.Terminated => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetLeaseDuration()
+    {
+        if (lease == null) return "";
+        var duration = lease.EndDate - lease.StartDate;
+        var months = (int)(duration.TotalDays / 30);
+        return $"{months} months";
+    }
+
+    private string GetDaysRemaining()
+    {
+        if (lease == null) return "";
+        var remaining = lease.EndDate - DateTime.UtcNow;
+        if (remaining.TotalDays < 0)
+            return "Expired";
+        return $"{(int)remaining.TotalDays} days remaining";
+    }
+
+    private void ShowRenewDialog()
+    {
+        renewEndDate = lease?.EndDate.AddYears(1);
+        showRenewDialog = true;
+    }
+
+    private void CloseRenewDialog()
+    {
+        showRenewDialog = false;
+    }
+
+    private async Task HandleRenew()
+    {
+        if (renewEndDate == null) return;
+
+        try
+        {
+            isSubmitting = true;
+            var updateDto = new UpdateLeaseDto { EndDate = renewEndDate };
+            await ApiClient.PutAsync<UpdateLeaseDto, object>($"/api/leases/{Id}", updateDto);
+            await LoadLeaseDetails();
+            CloseRenewDialog();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to renew lease: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ShowTerminateDialog()
+    {
+        showTerminateDialog = true;
+    }
+
+    private void CloseTerminateDialog()
+    {
+        showTerminateDialog = false;
+    }
+
+    private async Task HandleTerminate()
+    {
+        try
+        {
+            isSubmitting = true;
+            var updateDto = new UpdateLeaseDto { Status = LeaseStatus.Terminated };
+            await ApiClient.PutAsync<UpdateLeaseDto, object>($"/api/leases/{Id}", updateDto);
+            await LoadLeaseDetails();
+            CloseTerminateDialog();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to terminate lease: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

@@ -1,0 +1,225 @@
+@page "/invoices"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager,Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Invoices - Dr Majoko Projects</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">
+        <i class="bi bi-receipt me-2"></i>Invoices
+    </h2>
+    <AuthorizeView Roles="Admin,PropertyManager">
+        <Authorized>
+            <button class="btn btn-primary" @onclick="NavigateToGenerate">
+                <i class="bi bi-plus-circle me-1"></i>Generate Invoices
+            </button>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+<!-- Filter -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-8">
+                <select @bind="selectedStatus" @bind:event="onchange" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="0">Pending</option>
+                    <option value="1">Paid</option>
+                    <option value="2">Overdue</option>
+                    <option value="3">Partially Paid</option>
+                    <option value="4">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-4">
+                <button type="button" @onclick="LoadInvoices" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading invoices...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (invoices == null || !filteredInvoices.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No invoices found.
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var invoice in filteredInvoices)
+        {
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="card-title mb-1">@invoice.InvoiceNumber</h5>
+                                <p class="text-muted small mb-1">
+                                    <i class="bi bi-building me-1"></i>@invoice.PropertyName
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    <i class="bi bi-person me-1"></i>@invoice.TenantName
+                                </p>
+                            </div>
+                            <span class="badge bg-@GetStatusBadgeClass(invoice.Status)">
+                                @invoice.Status
+                            </span>
+                        </div>
+
+                        <hr />
+
+                        <div class="row g-2 small">
+                            <div class="col-6">
+                                <strong>Invoice Date:</strong><br />
+                                @invoice.InvoiceDate.ToString("dd MMM yyyy")
+                            </div>
+                            <div class="col-6">
+                                <strong>Due Date:</strong><br />
+                                @invoice.DueDate.ToString("dd MMM yyyy")
+                                @if (invoice.IsOverdue)
+                                {
+                                    <span class="text-danger">(@invoice.DaysOverdue days overdue)</span>
+                                }
+                            </div>
+                            <div class="col-6">
+                                <strong>Amount:</strong><br />
+                                <span class="text-primary">R @invoice.Amount.ToString("N2")</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Amount Due:</strong><br />
+                                <span class="@(invoice.AmountDue > 0 ? "text-danger" : "text-success")">
+                                    R @invoice.AmountDue.ToString("N2")
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <a href="/invoices/details/@invoice.Id" class="btn btn-sm btn-outline-primary me-2">
+                                <i class="bi bi-eye me-1"></i>View Details
+                            </a>
+                            <AuthorizeView Roles="Admin,PropertyManager">
+                                <Authorized>
+                                    @if (invoice.Status != PaymentStatus.Paid)
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick="() => NavigateToRecordPayment(invoice.Id)">
+                                            <i class="bi bi-cash me-1"></i>Record Payment
+                                        </button>
+                                    }
+                                </Authorized>
+                            </AuthorizeView>
+                            <AuthorizeView Roles="Tenant">
+                                <Authorized>
+                                    @if (invoice.Status != PaymentStatus.Paid)
+                                    {
+                                        <a href="/payments/paynow/@invoice.Id" class="btn btn-sm btn-success">
+                                            <i class="bi bi-credit-card me-1"></i>Pay Now
+                                        </a>
+                                    }
+                                </Authorized>
+                            </AuthorizeView>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<InvoiceDto>? invoices;
+    private List<InvoiceDto> filteredInvoices => FilterInvoices();
+    private string selectedStatus = "";
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInvoices();
+    }
+
+    private async Task LoadInvoices()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            invoices = await ApiClient.GetAsync<List<InvoiceDto>>("/api/invoices");
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading invoices: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<InvoiceDto> FilterInvoices()
+    {
+        if (invoices == null)
+            return new List<InvoiceDto>();
+
+        var filtered = invoices.AsEnumerable();
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(selectedStatus) && int.TryParse(selectedStatus, out int statusValue))
+        {
+            filtered = filtered.Where(i => (int)i.Status == statusValue);
+        }
+
+        return filtered.OrderByDescending(i => i.InvoiceDate).ToList();
+    }
+
+    private string GetStatusBadgeClass(PaymentStatus status)
+    {
+        return status switch
+        {
+            PaymentStatus.Pending => "warning",
+            PaymentStatus.Paid => "success",
+            PaymentStatus.Overdue => "danger",
+            PaymentStatus.PartiallyPaid => "info",
+            PaymentStatus.Cancelled => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    private void NavigateToRecordPayment(string invoiceId)
+    {
+        Navigation.NavigateTo($"/invoices/record-payment/{invoiceId}");
+    }
+
+    private void NavigateToGenerate()
+    {
+        Navigation.NavigateTo("/invoices/generate");
+    }
+}

@@ -1,0 +1,132 @@
+@using MajokoRentals.Mobile.main.Services
+@inject IConnectivityService ConnectivityService
+@inject ISyncService SyncService
+@implements IDisposable
+
+<div class="sync-status-badge">
+    @if (isOnline)
+    {
+        <span class="badge bg-success">
+            <i class="bi bi-wifi me-1"></i>Online
+        </span>
+
+        @if (pendingCount > 0)
+        {
+            <span class="badge bg-warning ms-1" @onclick="TriggerSync" style="cursor: pointer;" title="Click to sync now">
+                <i class="bi bi-cloud-upload me-1"></i>
+                @pendingCount pending
+            </span>
+        }
+    }
+    else
+    {
+        <span class="badge bg-warning">
+            <i class="bi bi-wifi-off me-1"></i>Offline
+        </span>
+
+        @if (pendingCount > 0)
+        {
+            <span class="badge bg-secondary ms-1">
+                <i class="bi bi-hourglass-split me-1"></i>
+                @pendingCount queued
+            </span>
+        }
+    }
+
+    @if (isSyncing)
+    {
+        <span class="badge bg-info ms-1">
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            Syncing...
+        </span>
+    }
+</div>
+
+@code {
+    private bool isOnline => ConnectivityService.IsConnected;
+    private int pendingCount = 0;
+    private bool isSyncing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to connectivity and sync events
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+        SyncService.SyncProgressChanged += OnSyncProgress;
+        SyncService.SyncCompleted += OnSyncCompleted;
+
+        // Load initial pending count
+        await UpdatePendingCount();
+    }
+
+    private async void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            await UpdatePendingCount();
+            StateHasChanged();
+        });
+    }
+
+    private void OnSyncProgress(object? sender, SyncProgressEventArgs e)
+    {
+        InvokeAsync(() =>
+        {
+            isSyncing = true;
+            StateHasChanged();
+        });
+    }
+
+    private async void OnSyncCompleted(object? sender, SyncResult e)
+    {
+        await InvokeAsync(async () =>
+        {
+            isSyncing = false;
+            await UpdatePendingCount();
+            StateHasChanged();
+        });
+    }
+
+    private async Task UpdatePendingCount()
+    {
+        try
+        {
+            var counts = await SyncService.GetPendingCountsAsync();
+            pendingCount = counts.Values.Sum();
+        }
+        catch
+        {
+            pendingCount = 0;
+        }
+    }
+
+    private async Task TriggerSync()
+    {
+        if (isOnline && !isSyncing && pendingCount > 0)
+        {
+            try
+            {
+                isSyncing = true;
+                StateHasChanged();
+
+                await ConnectivityService.TriggerSyncAsync();
+            }
+            catch
+            {
+                // Error handled by sync service
+            }
+            finally
+            {
+                isSyncing = false;
+                await UpdatePendingCount();
+                StateHasChanged();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+        SyncService.SyncProgressChanged -= OnSyncProgress;
+        SyncService.SyncCompleted -= OnSyncCompleted;
+    }
+}

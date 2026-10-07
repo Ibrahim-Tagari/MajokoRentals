@@ -1,0 +1,415 @@
+@page "/maintenance/my"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using MajokoRentals.Mobile.Data
+@using MajokoRentals.Mobile.Data.LocalModels
+@using MajokoRentals.Mobile.main.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+@inject LocalDbContext LocalDb
+@inject IConnectivityService ConnectivityService
+@inject IAuthenticationService AuthService
+@inject IDataCacheService DataCacheService
+@inject ILocalizationService Localization
+@implements IDisposable
+
+<PageTitle>My Maintenance Requests - Dr Majoko Projects</PageTitle>
+
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2><i class="bi bi-tools me-2"></i>@Localization.GetString("Maint_Title")</h2>
+        <p class="text-muted">@Localization.GetString("Maint_TrackRequests")</p>
+        @if (unsyncedCount > 0)
+        {
+            <span class="badge bg-warning">
+                <i class="bi bi-cloud-upload me-1"></i>@unsyncedCount @Localization.GetString("Maint_PendingSync")
+            </span>
+        }
+        @if (isRefreshing)
+        {
+            <span class="badge bg-info ms-2">
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>@Localization.GetString("Maint_Refreshing")
+            </span>
+        }
+    </div>
+    <a href="/maintenance/create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-2"></i>@Localization.GetString("Maint_NewRequest")
+    </a>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">@Localization.GetString("Common_Loading")</span>
+        </div>
+        <p class="mt-2 text-muted">@Localization.GetString("Common_Loading")</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (requests != null)
+{
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">@Localization.GetString("Maint_TotalRequests")</h6>
+                    <h2 class="text-primary mb-0">@requests.Count</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">@Localization.GetString("Maint_Pending")</h6>
+                    <h2 class="text-secondary mb-0">@requests.Count(r => r.Status == MaintenanceStatus.Pending)</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">@Localization.GetString("Maint_InProgress")</h6>
+                    <h2 class="text-warning mb-0">@requests.Count(r => r.Status == MaintenanceStatus.InProgress)</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">@Localization.GetString("Maint_Resolved")</h6>
+                    <h2 class="text-success mb-0">@requests.Count(r => r.Status == MaintenanceStatus.Resolved)</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="btn-group mb-3 w-100" role="group">
+        <button type="button" class="btn @(statusFilter == "All" ? "btn-primary" : "btn-outline-primary")" @onclick='() => statusFilter = "All"'>
+            @Localization.GetString("Maint_All") (@requests.Count)
+        </button>
+        <button type="button" class="btn @(statusFilter == "Pending" ? "btn-secondary" : "btn-outline-secondary")" @onclick='() => statusFilter = "Pending"'>
+            @Localization.GetString("Maint_Pending") (@requests.Count(r => r.Status == MaintenanceStatus.Pending))
+        </button>
+        <button type="button" class="btn @(statusFilter == "InProgress" ? "btn-warning" : "btn-outline-warning")" @onclick='() => statusFilter = "InProgress"'>
+            @Localization.GetString("Maint_InProgress") (@requests.Count(r => r.Status == MaintenanceStatus.InProgress))
+        </button>
+        <button type="button" class="btn @(statusFilter == "Resolved" ? "btn-success" : "btn-outline-success")" @onclick='() => statusFilter = "Resolved"'>
+            @Localization.GetString("Maint_Resolved") (@requests.Count(r => r.Status == MaintenanceStatus.Resolved))
+        </button>
+    </div>
+
+    @if (!filteredRequests.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>@Localization.GetString("Maint_NoRequests")
+        </div>
+    }
+    else
+    {
+        <!-- Requests List -->
+        @foreach (var request in filteredRequests.OrderByDescending(r => r.ReportedDate))
+        {
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h5 class="mb-1">
+                                @request.Title
+                                @if (request.Id.StartsWith("local-"))
+                                {
+                                    <span class="badge bg-warning ms-2" title="Pending sync to server">
+                                        <i class="bi bi-hourglass-split me-1"></i>@Localization.GetString("Maint_Offline")
+                                    </span>
+                                }
+                            </h5>
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-building me-1"></i>@request.PropertyName
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-@GetStatusBadgeClass(request.Status) mb-1">
+                                @GetLocalizedStatus(request.Status)
+                            </span>
+                            @if (request.Priority == MaintenancePriority.Emergency || request.Priority == MaintenancePriority.High)
+                            {
+                                <br />
+                                <span class="badge bg-@GetPriorityBadgeClass(request.Priority)">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>@GetLocalizedPriority(request.Priority)
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(request.Description))
+                    {
+                        <p class="mb-2">@request.Description</p>
+                    }
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">
+                                <i class="bi bi-calendar me-1"></i>@Localization.GetString("Maint_Reported"): @request.ReportedDate.ToString("MMM dd, yyyy")
+                            </small>
+                            <br />
+                            <small class="text-muted">
+                                <i class="bi bi-tag me-1"></i>@Localization.GetString("Maint_Category"): @GetLocalizedCategory(request.Category)
+                            </small>
+                            @if (!string.IsNullOrWhiteSpace(request.AssignedToName))
+                            {
+                                <br />
+                                <small class="text-muted">
+                                    <i class="bi bi-person me-1"></i>@Localization.GetString("Maint_AssignedTo"): @request.AssignedToName
+                                </small>
+                            }
+                        </div>
+                        <a href="/maintenance/details/@request.Id" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i>@Localization.GetString("Btn_ViewDetails")
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        You haven't submitted any maintenance requests yet.
+        <a href="/maintenance/create" class="alert-link">Create your first request</a>
+    </div>
+}
+
+@code {
+    private List<MaintenanceRequestDto>? requests;
+    private bool isLoading = true;
+    private bool isRefreshing = false;
+    private string? errorMessage;
+    private string statusFilter = "All";
+    private int unsyncedCount = 0;
+
+    private List<MaintenanceRequestDto> filteredRequests
+    {
+        get
+        {
+            if (requests == null) return new List<MaintenanceRequestDto>();
+
+            return statusFilter switch
+            {
+                "Pending" => requests.Where(r => r.Status == MaintenanceStatus.Pending).ToList(),
+                "InProgress" => requests.Where(r => r.Status == MaintenanceStatus.InProgress).ToList(),
+                "Resolved" => requests.Where(r => r.Status == MaintenanceStatus.Resolved).ToList(),
+                _ => requests.ToList()
+            };
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+
+        // Subscribe to connectivity changes for auto-refresh
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+
+        // Subscribe to language changes
+        if (Localization != null)
+        {
+            Localization.LanguageChanged += OnLanguageChanged;
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, LanguageChangedEventArgs e)
+    {
+        // Trigger UI refresh when language changes
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            if (e.IsConnected)
+            {
+                // Show refreshing indicator
+                isRefreshing = true;
+                StateHasChanged();
+
+                // Wait a bit for sync to complete
+                await Task.Delay(3000);
+
+                // Reload requests when back online
+                await LoadRequests();
+
+                isRefreshing = false;
+            }
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadRequests()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            var allRequests = new List<MaintenanceRequestDto>();
+
+            // Get user info for filtering
+            var userInfo = await AuthService.GetUserInfoAsync();
+            if (userInfo == null) return;
+
+            // Load from API if online
+            if (ConnectivityService.IsConnected)
+            {
+                try
+                {
+                    var apiRequests = await ApiClient.GetAsync<List<MaintenanceRequestDto>>("/api/maintenance/my");
+                    if (apiRequests != null)
+                    {
+                        allRequests.AddRange(apiRequests);
+                    }
+                }
+                catch (HttpRequestException)
+                {
+                    errorMessage = "Unable to load from server. Showing local requests only.";
+                }
+            }
+
+            // Always load local unsynced requests
+            var localRequests = await LocalDb.MaintenanceRequests
+                .Where(m => !m.IsSynced && m.ReportedById == userInfo.UserId)
+                .ToListAsync();
+
+            unsyncedCount = localRequests.Count;
+
+            // Convert local requests to DTOs and add to list
+            foreach (var local in localRequests)
+            {
+                // Get property name from cache
+                var property = await DataCacheService.GetCachedPropertiesAsync();
+                var propertyName = property.FirstOrDefault(p => p.Id == local.PropertyId)?.Name ?? "Unknown Property";
+
+                allRequests.Add(new MaintenanceRequestDto
+                {
+                    Id = $"local-{local.Id}", // Prefix with "local-" to identify unsynced
+                    PropertyId = local.PropertyId,
+                    PropertyName = propertyName,
+                    Title = local.Title,
+                    Description = local.Description,
+                    Category = local.Category,
+                    Priority = local.Priority,
+                    Status = local.Status,
+                    Location = local.Location,
+                    ReportedDate = local.ReportedDate,
+                    ReportedByName = "You",
+                    ImageUrls = string.IsNullOrEmpty(local.ImageUrls)
+                        ? new List<string>()
+                        : System.Text.Json.JsonSerializer.Deserialize<List<string>>(local.ImageUrls) ?? new List<string>()
+                });
+            }
+
+            requests = allRequests;
+
+            if (requests.Count == 0 && !ConnectivityService.IsConnected)
+            {
+                errorMessage = "No requests found. Connect to the internet to load your requests from the server.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading maintenance requests: {ex.Message}";
+            requests = new List<MaintenanceRequestDto>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetStatusBadgeClass(MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Pending => "secondary",
+            MaintenanceStatus.InProgress => "warning",
+            MaintenanceStatus.Resolved => "success",
+            MaintenanceStatus.Cancelled => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPriorityBadgeClass(MaintenancePriority priority)
+    {
+        return priority switch
+        {
+            MaintenancePriority.Emergency => "danger",
+            MaintenancePriority.High => "warning",
+            MaintenancePriority.Medium => "info",
+            MaintenancePriority.Low => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    private string GetLocalizedStatus(MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Pending => Localization.GetString("Maint_Pending"),
+            MaintenanceStatus.InProgress => Localization.GetString("Maint_InProgress"),
+            MaintenanceStatus.Resolved => Localization.GetString("Maint_Resolved"),
+            _ => status.ToString()
+        };
+    }
+
+    private string GetLocalizedPriority(MaintenancePriority priority)
+    {
+        return priority switch
+        {
+            MaintenancePriority.Low => Localization.GetString("Priority_Low"),
+            MaintenancePriority.Medium => Localization.GetString("Priority_Medium"),
+            MaintenancePriority.High => Localization.GetString("Priority_High"),
+            MaintenancePriority.Emergency => Localization.GetString("Priority_Emergency"),
+            _ => priority.ToString()
+        };
+    }
+
+    private string GetLocalizedCategory(MaintenanceCategory category)
+    {
+        return category switch
+        {
+            MaintenanceCategory.Plumbing => Localization.GetString("Category_Plumbing"),
+            MaintenanceCategory.Electrical => Localization.GetString("Category_Electrical"),
+            MaintenanceCategory.Carpentry => Localization.GetString("Category_Carpentry"),
+            MaintenanceCategory.Painting => Localization.GetString("Category_Painting"),
+            MaintenanceCategory.Cleaning => Localization.GetString("Category_Cleaning"),
+            MaintenanceCategory.Appliance => Localization.GetString("Category_Appliance"),
+            MaintenanceCategory.Security => Localization.GetString("Category_Security"),
+            MaintenanceCategory.Other => Localization.GetString("Category_Other"),
+            _ => category.ToString()
+        };
+    }
+
+    public void Dispose()
+    {
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+
+        // Unsubscribe from language changes
+        if (Localization != null)
+        {
+            Localization.LanguageChanged -= OnLanguageChanged;
+        }
+    }
+}

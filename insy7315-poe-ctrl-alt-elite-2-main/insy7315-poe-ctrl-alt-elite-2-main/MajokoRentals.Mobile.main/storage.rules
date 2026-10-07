@@ -1,0 +1,146 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    // Check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if user has specific role
+    function hasRole(role) {
+      return isSignedIn() &&
+             request.auth.token.role == role;
+    }
+
+    // Check if user is admin or property manager
+    function isAdminOrManager() {
+      return hasRole('Admin') || hasRole('PropertyManager');
+    }
+
+    // Check if file size is within limit (10MB)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Check if file is an allowed image type
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Check if file is an allowed document type
+    function isDocument() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    // ========================================
+    // USER UPLOADS (Profile pictures, documents)
+    // ========================================
+    match /users/{userId}/{allPaths=**} {
+      // Users can read their own files
+      allow read: if isSignedIn() && request.auth.uid == userId;
+
+      // Users can upload their own files (with size limit)
+      allow write: if isSignedIn() &&
+                      request.auth.uid == userId &&
+                      isValidSize() &&
+                      (isImage() || isDocument());
+    }
+
+    // ========================================
+    // PROPERTY IMAGES
+    // ========================================
+    match /properties/{propertyId}/{allPaths=**} {
+      // Anyone can read property images (public listings)
+      allow read: if true;
+
+      // Only admins/managers can upload property images
+      allow write: if isAdminOrManager() &&
+                      isValidSize() &&
+                      isImage();
+    }
+
+    // ========================================
+    // APPLICATION DOCUMENTS (ID, payslips, etc.)
+    // ========================================
+    match /applications/{applicationId}/{allPaths=**} {
+      // Only the applicant and admins/managers can read
+      allow read: if isSignedIn(); // Further restricted by Firestore rules
+
+      // Applicants can upload their documents
+      // Admins/managers can upload any documents
+      allow write: if isSignedIn() &&
+                      isValidSize() &&
+                      (isImage() || isDocument());
+    }
+
+    // ========================================
+    // INVOICE PAYMENT PROOFS
+    // ========================================
+    match /invoices/{invoiceId}/payments/{allPaths=**} {
+      // Tenants and admins/managers can read payment proofs
+      allow read: if isSignedIn();
+
+      // Tenants can upload payment proofs
+      // Admins/managers can upload any payment proofs
+      allow write: if isSignedIn() &&
+                      isValidSize() &&
+                      (isImage() || isDocument());
+    }
+
+    // ========================================
+    // MAINTENANCE REQUEST IMAGES
+    // ========================================
+    match /maintenance/{requestId}/{allPaths=**} {
+      // Tenants, caretakers, and admins/managers can read
+      allow read: if isSignedIn();
+
+      // Tenants can upload images of issues
+      // Caretakers can upload completion images
+      // Admins/managers can upload any images
+      allow write: if isSignedIn() &&
+                      isValidSize() &&
+                      isImage();
+    }
+
+    // ========================================
+    // LEASE DOCUMENTS
+    // ========================================
+    match /leases/{leaseId}/{allPaths=**} {
+      // Only tenants (for their leases) and admins/managers can read
+      allow read: if isSignedIn(); // Further restricted by Firestore rules
+
+      // Only admins/managers can upload lease documents
+      allow write: if isAdminOrManager() &&
+                      isValidSize() &&
+                      isDocument();
+    }
+
+    // ========================================
+    // CHATBOT / ESCALATION ATTACHMENTS
+    // ========================================
+    match /escalations/{escalationId}/{allPaths=**} {
+      // Users and admins can read escalation attachments
+      allow read: if isSignedIn();
+
+      // Users can upload attachments to their escalations
+      allow write: if isSignedIn() &&
+                      isValidSize() &&
+                      (isImage() || isDocument());
+    }
+
+    // ========================================
+    // DEFAULT: DENY ALL
+    // ========================================
+    // Any path not explicitly listed above is denied
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

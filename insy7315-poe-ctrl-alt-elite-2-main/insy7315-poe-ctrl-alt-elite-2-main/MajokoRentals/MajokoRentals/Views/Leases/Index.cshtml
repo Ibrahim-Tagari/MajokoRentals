@@ -1,0 +1,170 @@
+@model IEnumerable<MajokoRentals.Core.ViewModels.LeaseListViewModel>
+
+@{
+    ViewData["Title"] = "Leases";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">
+        <i class="bi bi-file-text me-2"></i>Lease Management
+    </h2>
+    @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+    {
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Create Lease
+        </a>
+    }
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    @foreach (LeaseStatus status in Enum.GetValues(typeof(LeaseStatus)))
+                    {
+                        <option value="@((int)status)" selected="@(ViewBag.Status == status)">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Filter</label>
+                <select name="expiringSoon" class="form-select">
+                    <option value="">All Leases</option>
+                    <option value="true" selected="@(ViewBag.ExpiringSoon == true)">Expiring Soon (30 days)</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Expiring Soon Alert -->
+@{
+    var expiringSoonLeases = Model.Where(l => l.IsExpiringSoon && l.Status == LeaseStatus.Active).ToList();
+    if (expiringSoonLeases.Any())
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>@expiringSoonLeases.Count lease(s) expiring within 30 days!</strong>
+            Consider sending renewal reminders.
+        </div>
+    }
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No leases found.
+        @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+        {
+            <a asp-action="Create">Create your first lease</a>
+        }
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="color: var(--text-primary);">
+                    <thead style="background-color: var(--secondary-bg); color: var(--text-primary);">
+                        <tr>
+                            <th style="color: var(--text-primary);">Property</th>
+                            <th style="color: var(--text-primary);">Tenant</th>
+                            <th style="color: var(--text-primary);">Start Date</th>
+                            <th style="color: var(--text-primary);">End Date</th>
+                            <th style="color: var(--text-primary);">Monthly Rent</th>
+                            <th style="color: var(--text-primary);">Status</th>
+                            <th style="color: var(--text-primary);">Days Until Expiry</th>
+                            <th style="color: var(--text-primary);">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody style="background-color: var(--secondary-bg);">
+
+                        @foreach (var lease in Model)
+                        {
+                            <tr class="@(lease.IsExpired ? "table-danger" : lease.IsExpiringSoon ? "table-warning" : "")" style="background-color: var(--secondary-bg) !important;">
+                                <td style="color: var(--text-primary) !important;">
+                                    <strong>@lease.PropertyName</strong><br />
+                                    <small class="text-muted">@lease.PropertyAddress</small>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <strong>@lease.TenantName</strong><br />
+                                    <small class="text-muted">@lease.TenantEmail</small>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">@lease.StartDate.ToString("MMM dd, yyyy")</td>
+                                <td style="color: var(--text-primary) !important;">@lease.EndDate.ToString("MMM dd, yyyy")</td>
+                                <td style="color: var(--text-primary) !important;">R @lease.MonthlyRent.ToString("N2")</td>
+                                <td style="color: var(--text-primary) !important;">
+                                    @{
+                                        var statusBadgeClass = lease.Status == LeaseStatus.Active ? "success" : (lease.Status == LeaseStatus.Expired || lease.Status == LeaseStatus.Terminated ? "danger" : "warning");
+                                        var statusStyle = lease.Status == LeaseStatus.Active ? "background-color: #198754 !important; color: #FFFFFF !important;" :
+                                                          (lease.Status == LeaseStatus.Expired || lease.Status == LeaseStatus.Terminated ? "background-color: #dc3545 !important; color: #FFFFFF !important;" :
+                                                          "background-color: #BAAA49 !important; color: #151A2C !important;");
+                                    }
+                                    <span class="badge bg-@statusBadgeClass" style="@statusStyle">
+                                        @lease.Status
+                                    </span>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">
+                                    @if (lease.Status == LeaseStatus.Active)
+                                    {
+                                        if (lease.IsExpired)
+                                        {
+                                            <span class="badge bg-danger" style="background-color: #dc3545 !important; color: #FFFFFF !important;">Expired</span>
+                                        }
+                                        else if (lease.IsExpiringSoon)
+                                        {
+                                            <span class="badge bg-warning" style="background-color: #BAAA49 !important; color: #151A2C !important;">@lease.DaysUntilExpiry days</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-bold" style="color: var(--text-primary) !important;">@lease.DaysUntilExpiry days</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Details" asp-route-id="@lease.Id" class="btn btn-outline-primary" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+                                        {
+                                            @if (lease.Status == LeaseStatus.Active && lease.IsExpiringSoon)
+                                            {
+                                                <a asp-action="Renew" asp-route-id="@lease.Id" class="btn btn-outline-success" title="Renew">
+                                                    <i class="bi bi-arrow-clockwise"></i>
+                                                </a>
+                                            }
+                                            <a asp-action="Edit" asp-route-id="@lease.Id" class="btn btn-outline-warning" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            @if (lease.Status == LeaseStatus.Active)
+                                            {
+                                                <a asp-action="Terminate" asp-route-id="@lease.Id" class="btn btn-outline-danger" title="Terminate">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </a>
+                                            }
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

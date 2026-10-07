@@ -1,0 +1,206 @@
+@page "/properties/details/{id}"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>@(property?.Name ?? "Property Details") - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </button>
+    <AuthorizeView Roles="Admin,PropertyManager">
+        <Authorized>
+            <a href="/properties/edit/@Id" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading property details...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (property != null)
+{
+    <div class="row">
+        <div class="col-12">
+            <!-- Main Image -->
+            @if (property.Images != null && property.Images.Any())
+            {
+                <div class="mb-4">
+                    <img src="@property.Images.First()" class="img-fluid rounded shadow w-100" alt="@property.Name" style="max-height: 400px; object-fit: cover;" />
+                </div>
+
+                @if (property.Images.Count > 1)
+                {
+                    <div class="row g-2 mb-4">
+                        @foreach (var image in property.Images.Skip(1).Take(3))
+                        {
+                            <div class="col-4">
+                                <img src="@image" class="img-fluid rounded" alt="Property Image" style="height: 100px; object-fit: cover; width: 100%;" />
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="rounded shadow mb-4 d-flex align-items-center justify-content-center" style="height: 300px; background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                    <i class="bi bi-house text-muted" style="font-size: 6rem;"></i>
+                </div>
+            }
+
+            <!-- Property Info Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">@property.Name</h3>
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-geo-alt me-1"></i>@property.Address<br />
+                        @property.City, @property.Province @property.PostalCode
+                    </p>
+
+                    <h4 class="text-primary mb-3">R @property.MonthlyRent.ToString("N2")<small class="text-muted"> /month</small></h4>
+
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <i class="bi bi-door-closed d-block" style="font-size: 1.5rem;"></i>
+                            <strong>@property.Bedrooms</strong><br />
+                            <small class="text-muted">Bedrooms</small>
+                        </div>
+                        <div class="col-4">
+                            <i class="bi bi-droplet d-block" style="font-size: 1.5rem;"></i>
+                            <strong>@property.Bathrooms</strong><br />
+                            <small class="text-muted">Bathrooms</small>
+                        </div>
+                        <div class="col-4">
+                            <i class="bi bi-rulers d-block" style="font-size: 1.5rem;"></i>
+                            <strong>@property.SquareMeters</strong><br />
+                            <small class="text-muted">sqm</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <span class="badge bg-@GetStatusBadgeClass(property.Status)">@property.Status</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Description</h5>
+                    <p class="card-text">@property.Description</p>
+                </div>
+            </div>
+
+            <!-- Amenities -->
+            @if (property.Amenities != null && property.Amenities.Any())
+            {
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Amenities</h5>
+                        <div class="row g-2">
+                            @foreach (var amenity in property.Amenities)
+                            {
+                                <div class="col-6">
+                                    <i class="bi bi-check-circle text-success me-1"></i>@amenity
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Contact/Apply Button -->
+            <AuthorizeView>
+                <Authorized>
+                    <div class="d-grid gap-2 mb-4">
+                        <a href="/applications/create?propertyId=@Id" class="btn btn-primary btn-lg">
+                            <i class="bi bi-file-earmark-text me-2"></i>Apply for This Property
+                        </a>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Please <a href="/account/login">sign in</a> to apply for this property.
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    private PropertyDto? property;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPropertyDetails();
+    }
+
+    private async Task LoadPropertyDetails()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            property = await ApiClient.GetAsync<PropertyDto>($"/api/properties/{Id}");
+
+            if (property == null)
+            {
+                errorMessage = "Property not found.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading property details: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/properties");
+    }
+
+    private string GetStatusBadgeClass(PropertyStatus status)
+    {
+        return status switch
+        {
+            PropertyStatus.Available => "success",
+            PropertyStatus.Occupied => "warning",
+            PropertyStatus.UnderMaintenance => "info",
+            PropertyStatus.Archived => "secondary",
+            _ => "secondary"
+        };
+    }
+}

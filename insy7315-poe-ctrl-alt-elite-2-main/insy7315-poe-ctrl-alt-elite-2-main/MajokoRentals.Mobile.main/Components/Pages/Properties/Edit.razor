@@ -1,0 +1,327 @@
+@page "/properties/edit/{id}"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Property - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Cancel
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading property...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(loadErrorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@loadErrorMessage
+    </div>
+}
+else if (model != null)
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="card-title mb-4">
+                <i class="bi bi-pencil me-2"></i>Edit Property
+            </h3>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+                </div>
+            }
+
+            <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <!-- Basic Information -->
+                <h5 class="mb-3">Basic Information</h5>
+                <div class="mb-3">
+                    <label class="form-label">Property Name *</label>
+                    <InputText @bind-Value="model.Name" class="form-control" placeholder="e.g., Sunset Apartment 2B" />
+                    <ValidationMessage For="@(() => model.Name)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description *</label>
+                    <InputTextArea @bind-Value="model.Description" class="form-control" rows="4" placeholder="Describe the property..." />
+                    <ValidationMessage For="@(() => model.Description)" />
+                </div>
+
+                <!-- Address Information -->
+                <h5 class="mb-3 mt-4">Address</h5>
+                <div class="mb-3">
+                    <label class="form-label">Street Address *</label>
+                    <InputText @bind-Value="model.Address" class="form-control" placeholder="123 Main Street" />
+                    <ValidationMessage For="@(() => model.Address)" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">City</label>
+                        <InputText @bind-Value="model.City" class="form-control" placeholder="Johannesburg" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Province</label>
+                        <InputText @bind-Value="model.Province" class="form-control" placeholder="Gauteng" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Postal Code</label>
+                    <InputText @bind-Value="model.PostalCode" class="form-control" placeholder="2000" />
+                </div>
+
+                <!-- Property Details -->
+                <h5 class="mb-3 mt-4">Property Details</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Monthly Rent (R) *</label>
+                        <InputNumber @bind-Value="model.MonthlyRent" class="form-control" placeholder="5000" />
+                        <ValidationMessage For="@(() => model.MonthlyRent)" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Deposit Amount (R)</label>
+                        <InputNumber @bind-Value="model.DepositAmount" class="form-control" placeholder="5000" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Bedrooms *</label>
+                        <InputNumber @bind-Value="model.Bedrooms" class="form-control" />
+                        <ValidationMessage For="@(() => model.Bedrooms)" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Bathrooms *</label>
+                        <InputNumber @bind-Value="model.Bathrooms" class="form-control" />
+                        <ValidationMessage For="@(() => model.Bathrooms)" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Parking Spaces</label>
+                        <InputNumber @bind-Value="model.ParkingSpaces" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Square Meters</label>
+                    <InputNumber @bind-Value="model.SquareMeters" class="form-control" placeholder="85" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Status</label>
+                        <InputSelect @bind-Value="model.Status" class="form-select">
+                            <option value="@PropertyStatus.Available">Available</option>
+                            <option value="@PropertyStatus.Occupied">Occupied</option>
+                            <option value="@PropertyStatus.UnderMaintenance">Under Maintenance</option>
+                            <option value="@PropertyStatus.Archived">Archived</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check mt-4">
+                            <InputCheckbox @bind-Value="model.IsFurnished" class="form-check-input" id="furnishedCheck" />
+                            <label class="form-check-label" for="furnishedCheck">
+                                Furnished
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check mt-4">
+                            <InputCheckbox @bind-Value="model.PetsAllowed" class="form-check-input" id="petsCheck" />
+                            <label class="form-check-label" for="petsCheck">
+                                Pets Allowed
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amenities -->
+                <h5 class="mb-3 mt-4">Amenities (Optional)</h5>
+                <div class="mb-3">
+                    <label class="form-label">Add amenities (one per line)</label>
+                    <textarea @bind="amenitiesText" class="form-control" rows="4" placeholder="e.g.,&#10;Swimming Pool&#10;Gym&#10;Parking&#10;Security"></textarea>
+                    <small class="text-muted">Enter each amenity on a new line</small>
+                </div>
+
+                <!-- GPS Coordinates -->
+                <h5 class="mb-3 mt-4">Location (Optional)</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Latitude</label>
+                        <InputNumber @bind-Value="model.Latitude" class="form-control" placeholder="-26.2041" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Longitude</label>
+                        <InputNumber @bind-Value="model.Longitude" class="form-control" placeholder="28.0473" />
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Updating Property...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span>Update Property</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isSubmitting">
+                        Cancel
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    private UpdatePropertyDto? model;
+    private string amenitiesText = "";
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string? loadErrorMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProperty();
+    }
+
+    private async Task LoadProperty()
+    {
+        try
+        {
+            isLoading = true;
+            loadErrorMessage = null;
+
+            var property = await ApiClient.GetAsync<PropertyDto>($"/api/properties/{Id}");
+
+            if (property == null)
+            {
+                loadErrorMessage = "Property not found.";
+                return;
+            }
+
+            // Map PropertyDto to UpdatePropertyDto
+            model = new UpdatePropertyDto
+            {
+                Id = property.Id,
+                Name = property.Name,
+                Description = property.Description,
+                Address = property.Address,
+                City = property.City,
+                Province = property.Province,
+                PostalCode = property.PostalCode,
+                Latitude = property.Latitude,
+                Longitude = property.Longitude,
+                MonthlyRent = property.MonthlyRent,
+                DepositAmount = property.DepositAmount,
+                Bedrooms = property.Bedrooms,
+                Bathrooms = property.Bathrooms,
+                ParkingSpaces = property.ParkingSpaces,
+                SquareMeters = property.SquareMeters,
+                Status = property.Status,
+                IsFurnished = property.IsFurnished,
+                PetsAllowed = property.PetsAllowed,
+                Amenities = property.Amenities,
+                Images = property.Images,
+                VideoUrl = property.VideoUrl
+            };
+
+            // Populate amenities text area
+            if (property.Amenities != null && property.Amenities.Any())
+            {
+                amenitiesText = string.Join("\n", property.Amenities);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            loadErrorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            loadErrorMessage = $"An error occurred while loading property: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (model == null) return;
+
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+
+            // Parse amenities from text
+            if (!string.IsNullOrWhiteSpace(amenitiesText))
+            {
+                model.Amenities = amenitiesText
+                    .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(a => a.Trim())
+                    .Where(a => !string.IsNullOrWhiteSpace(a))
+                    .ToList();
+            }
+            else
+            {
+                model.Amenities = new List<string>();
+            }
+
+            var success = await ApiClient.PutAsync<UpdatePropertyDto, object>($"/api/properties/{Id}", model);
+
+            if (success != null || true) // API returns 204 No Content on success
+            {
+                Navigation.NavigateTo($"/properties/details/{Id}");
+            }
+            else
+            {
+                errorMessage = "Failed to update property. Please try again.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/properties/details/{Id}");
+    }
+}

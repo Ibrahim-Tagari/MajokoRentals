@@ -1,0 +1,203 @@
+@using MajokoRentals.Mobile.main.Services
+@inject ISyncService SyncService
+@inject IConnectivityService ConnectivityService
+@implements IDisposable
+
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-cloud-upload me-2"></i>Synchronizing Data
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    @if (isSyncing)
+                    {
+                        <div class="text-center mb-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Syncing...</span>
+                            </div>
+                        </div>
+
+                        <p class="text-center mb-3">@syncMessage</p>
+
+                        @if (totalItems > 0)
+                        {
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                     role="progressbar"
+                                     style="width: @percentage%"
+                                     aria-valuenow="@percentage"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    @percentage%
+                                </div>
+                            </div>
+                            <p class="text-center mt-2 text-muted small">
+                                @processedItems of @totalItems items
+                            </p>
+                        }
+                    }
+                    else if (syncResult != null)
+                    {
+                        @if (syncResult.Success)
+                        {
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle me-2"></i>
+                                <strong>Sync Complete!</strong>
+                                <p class="mb-0 mt-2">
+                                    Successfully synced @syncResult.ItemsSynced item(s).
+                                </p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Sync Completed with Errors</strong>
+                                <p class="mb-2 mt-2">
+                                    Synced: @syncResult.ItemsSynced | Failed: @syncResult.ItemsFailed
+                                </p>
+
+                                @if (syncResult.Errors.Any())
+                                {
+                                    <details>
+                                        <summary class="text-danger" style="cursor: pointer;">
+                                            View Errors (@syncResult.Errors.Count)
+                                        </summary>
+                                        <ul class="mt-2 mb-0">
+                                            @foreach (var error in syncResult.Errors.Take(5))
+                                            {
+                                                <li class="small">@error</li>
+                                            }
+                                            @if (syncResult.Errors.Count > 5)
+                                            {
+                                                <li class="small">... and @(syncResult.Errors.Count - 5) more</li>
+                                            }
+                                        </ul>
+                                    </details>
+                                }
+                            </div>
+                        }
+
+                        @if (syncResult.Conflicts.Any())
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Conflicts Detected</strong>
+                                <p class="mb-0">
+                                    @syncResult.Conflicts.Count conflict(s) require manual resolution.
+                                </p>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="modal-footer">
+                    @if (!isSyncing)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="Close">
+                            Close
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool showModal { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> showModalChanged { get; set; }
+
+    private bool isSyncing = false;
+    private string syncMessage = "Preparing to sync...";
+    private int totalItems = 0;
+    private int processedItems = 0;
+    private int percentage = 0;
+    private SyncResult? syncResult;
+
+    protected override void OnInitialized()
+    {
+        SyncService.SyncProgressChanged += OnSyncProgress;
+        SyncService.SyncCompleted += OnSyncCompleted;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (showModal && !isSyncing)
+        {
+            await StartSync();
+        }
+    }
+
+    private async Task StartSync()
+    {
+        if (!ConnectivityService.IsConnected)
+        {
+            syncMessage = "No internet connection. Unable to sync.";
+            return;
+        }
+
+        try
+        {
+            isSyncing = true;
+            syncResult = null;
+            StateHasChanged();
+
+            syncResult = await SyncService.SyncAllAsync();
+        }
+        catch (Exception ex)
+        {
+            syncResult = new SyncResult
+            {
+                Success = false,
+                Errors = new List<string> { $"Sync failed: {ex.Message}" }
+            };
+        }
+        finally
+        {
+            isSyncing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnSyncProgress(object? sender, SyncProgressEventArgs e)
+    {
+        InvokeAsync(() =>
+        {
+            syncMessage = e.Message;
+            totalItems = e.TotalItems;
+            processedItems = e.ProcessedItems;
+            percentage = e.Percentage;
+            StateHasChanged();
+        });
+    }
+
+    private void OnSyncCompleted(object? sender, SyncResult e)
+    {
+        InvokeAsync(() =>
+        {
+            syncResult = e;
+            isSyncing = false;
+            StateHasChanged();
+        });
+    }
+
+    private async Task Close()
+    {
+        showModal = false;
+        await showModalChanged.InvokeAsync(false);
+    }
+
+    public void Dispose()
+    {
+        SyncService.SyncProgressChanged -= OnSyncProgress;
+        SyncService.SyncCompleted -= OnSyncCompleted;
+    }
+}

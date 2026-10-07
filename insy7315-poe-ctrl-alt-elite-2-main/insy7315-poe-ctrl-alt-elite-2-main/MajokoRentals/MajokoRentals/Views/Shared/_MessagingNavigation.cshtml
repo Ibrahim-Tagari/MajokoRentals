@@ -1,0 +1,41 @@
+@*
+    Messaging Navigation Links
+    Include this in your _Layout.cshtml navigation menu
+*@
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="messagingDropdown" role="button"
+           data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-chat-dots"></i> Messages
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="messagingDropdown">
+            <li>
+                <a class="dropdown-item" asp-controller="Messaging" asp-action="MyChats">
+                    <i class="bi bi-inbox"></i> My Chats
+                </a>
+            </li>
+
+            @if (User.IsInRole("Tenant"))
+            {
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" asp-controller="Messaging" asp-action="RequestChat">
+                        <i class="bi bi-plus-circle"></i> New Chat Request
+                    </a>
+                </li>
+            }
+
+            @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager") || User.IsInRole("Caretaker"))
+            {
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" asp-controller="Messaging" asp-action="PendingRequests">
+                        <i class="bi bi-clock-history"></i> Pending Requests
+                    </a>
+                </li>
+            }
+        </ul>
+    </li>
+}

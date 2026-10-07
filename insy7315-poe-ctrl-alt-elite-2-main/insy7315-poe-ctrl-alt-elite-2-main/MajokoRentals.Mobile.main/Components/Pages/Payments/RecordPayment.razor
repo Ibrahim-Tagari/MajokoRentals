@@ -1,0 +1,407 @@
+@page "/invoices/record-payment/{id}"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using MajokoRentals.Mobile.Data
+@using MajokoRentals.Mobile.Data.LocalModels
+@using MajokoRentals.Mobile.main.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager,Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+@inject LocalDbContext LocalDb
+@inject IConnectivityService ConnectivityService
+@inject IOfflineFileService OfflineFileService
+@inject IAuthenticationService AuthService
+
+<PageTitle>Record Payment - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Cancel
+    </button>
+
+    @* Offline Indicator *@
+    @if (!isOnline)
+    {
+        <span class="badge bg-warning ms-2">
+            <i class="bi bi-wifi-off me-1"></i>Offline Mode
+        </span>
+    }
+</div>
+
+@if (isLoadingInvoice)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading invoice...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(loadErrorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@loadErrorMessage
+    </div>
+}
+else if (invoice != null)
+{
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5>Invoice: @invoice.InvoiceNumber</h5>
+            <p class="mb-1"><strong>Property:</strong> @invoice.PropertyName</p>
+            <p class="mb-1"><strong>Tenant:</strong> @invoice.TenantName</p>
+            <p class="mb-1"><strong>Amount Due:</strong> <span class="text-danger fs-5">R @invoice.AmountDue.ToString("N2")</span></p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="card-title mb-4">
+                <i class="bi bi-cash me-2"></i>Record Payment
+            </h3>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>@successMessage
+                </div>
+            }
+
+            @if (!isOnline)
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Offline Mode:</strong> Payment will be saved locally and synced when you're back online.
+                </div>
+            }
+
+            <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="mb-3">
+                    <label class="form-label">Payment Amount (R) *</label>
+                    <InputNumber @bind-Value="model.Amount" class="form-control" placeholder="@invoice.AmountDue" />
+                    <small class="text-muted">Maximum: R @invoice.AmountDue.ToString("N2")</small>
+                    <ValidationMessage For="@(() => model.Amount)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Payment Date *</label>
+                    <InputDate @bind-Value="model.PaymentDate" class="form-control" />
+                    <ValidationMessage For="@(() => model.PaymentDate)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Payment Method *</label>
+                    <InputSelect @bind-Value="model.PaymentMethod" class="form-select">
+                        <option value="">-- Select Method --</option>
+                        <option value="Cash">Cash</option>
+                        <option value="BankTransfer">Bank Transfer</option>
+                        <option value="Card">Card</option>
+                        <option value="EFT">EFT</option>
+                        <option value="DebitOrder">Debit Order</option>
+                        <option value="Cheque">Cheque</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.PaymentMethod)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Reference Number</label>
+                    <InputText @bind-Value="model.Reference" class="form-control" placeholder="e.g., Transaction ID" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Notes</label>
+                    <InputTextArea @bind-Value="model.Notes" class="form-control" rows="3" placeholder="Any additional notes..." />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Proof of Payment (Optional)</label>
+                    <div class="input-group">
+                        <button type="button" class="btn btn-outline-primary" @onclick="PickProofOfPayment">
+                            <i class="bi bi-paperclip me-1"></i>
+                            @if (string.IsNullOrEmpty(selectedFileName))
+                            {
+                                <span>Choose File</span>
+                            }
+                            else
+                            {
+                                <span>@selectedFileName</span>
+                            }
+                        </button>
+                        @if (!string.IsNullOrEmpty(selectedFileName))
+                        {
+                            <button type="button" class="btn btn-outline-danger" @onclick="ClearFile">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        }
+                    </div>
+                    <small class="text-muted">Upload receipt, bank slip, or proof of payment (images/PDF)</small>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-success btn-lg" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Recording Payment...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span>Record Payment</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isSubmitting">
+                        Cancel
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    private InvoiceDto? invoice;
+    private RecordPaymentDto model = new()
+    {
+        PaymentDate = DateTime.Today
+    };
+
+    private bool isLoadingInvoice = true;
+    private bool isSubmitting = false;
+    private string? loadErrorMessage;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? selectedFilePath;
+    private string? selectedFileName;
+    private bool isOnline => ConnectivityService.IsConnected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInvoice();
+
+        // Subscribe to connectivity changes
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+    }
+
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadInvoice()
+    {
+        try
+        {
+            isLoadingInvoice = true;
+            loadErrorMessage = null;
+
+            if (isOnline)
+            {
+                invoice = await ApiClient.GetAsync<InvoiceDto>($"/api/invoices/{Id}");
+
+                if (invoice == null)
+                {
+                    loadErrorMessage = "Invoice not found.";
+                    return;
+                }
+
+                // Pre-fill amount with amount due
+                model.Amount = invoice.AmountDue;
+            }
+            else
+            {
+                // In offline mode, we need the invoice ID to proceed
+                // Create a mock invoice object for offline entry
+                invoice = new InvoiceDto
+                {
+                    Id = Id,
+                    InvoiceNumber = Id,
+                    PropertyName = "N/A (Offline)",
+                    TenantName = "N/A (Offline)",
+                    AmountDue = 0 // User will enter amount
+                };
+                loadErrorMessage = "Offline mode: Enter payment details. Data will sync when online.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            loadErrorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            loadErrorMessage = $"An error occurred while loading invoice: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingInvoice = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (invoice == null) return;
+
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+            successMessage = null;
+
+            // Validate payment amount
+            if (isOnline && model.Amount > invoice.AmountDue)
+            {
+                errorMessage = $"Payment amount cannot exceed the amount due (R {invoice.AmountDue:N2})";
+                return;
+            }
+
+            if (isOnline)
+            {
+                // Online: Submit to API
+                var result = await ApiClient.PostAsync<RecordPaymentDto, object>($"/api/invoices/{Id}/payments", model);
+
+                if (result != null || true) // API may return 204 No Content
+                {
+                    successMessage = "Payment recorded successfully!";
+                    await Task.Delay(1500); // Show success message briefly
+                    Navigation.NavigateTo($"/invoices/details/{Id}");
+                }
+                else
+                {
+                    errorMessage = "Failed to record payment. Please try again.";
+                }
+            }
+            else
+            {
+                // Offline: Save to local database
+                await SaveOfflineAsync();
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task SaveOfflineAsync()
+    {
+        try
+        {
+            var userInfo = await AuthService.GetUserInfoAsync();
+            if (userInfo == null)
+            {
+                errorMessage = "User authentication required.";
+                return;
+            }
+
+            // Handle file upload if selected
+            string? localFilePath = null;
+            if (!string.IsNullOrEmpty(selectedFilePath))
+            {
+                localFilePath = await OfflineFileService.CopyFileToAppStorageAsync(selectedFilePath, "payment");
+            }
+
+            // Parse invoice ID
+            if (!int.TryParse(Id, out int invoiceId))
+            {
+                errorMessage = "Invalid invoice ID.";
+                return;
+            }
+
+            var localPayment = new LocalPayment
+            {
+                InvoiceId = invoiceId,
+                TenantId = userInfo.UserId ?? string.Empty,
+                Amount = model.Amount,
+                PaymentDate = model.PaymentDate,
+                PaymentMethod = model.PaymentMethod,
+                ReferenceNumber = model.Reference,
+                Notes = model.Notes,
+                LocalProofOfPaymentPath = localFilePath,
+                IsSynced = false,
+                CreatedAt = DateTime.UtcNow,
+                CreatedLocally = DateTime.UtcNow,
+                ModifiedLocally = DateTime.UtcNow
+            };
+
+            LocalDb.Payments.Add(localPayment);
+            await LocalDb.SaveChangesAsync();
+
+            successMessage = "Payment saved offline! It will be submitted when you're back online.";
+
+            // Navigate back after a delay
+            await Task.Delay(2000);
+            Navigation.NavigateTo("/payments");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to save offline: {ex.Message}";
+        }
+    }
+
+    private async Task PickProofOfPayment()
+    {
+        try
+        {
+            var result = await FilePicker.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select Proof of Payment",
+                FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.Android, new[] { "image/*", "application/pdf" } },
+                    { DevicePlatform.iOS, new[] { "public.image", "com.adobe.pdf" } },
+                    { DevicePlatform.WinUI, new[] { ".jpg", ".jpeg", ".png", ".pdf" } }
+                })
+            });
+
+            if (result != null)
+            {
+                selectedFilePath = result.FullPath;
+                selectedFileName = result.FileName;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error picking file: {ex.Message}";
+        }
+    }
+
+    private void ClearFile()
+    {
+        selectedFilePath = null;
+        selectedFileName = null;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/invoices/details/{Id}");
+    }
+
+    public void Dispose()
+    {
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+    }
+}

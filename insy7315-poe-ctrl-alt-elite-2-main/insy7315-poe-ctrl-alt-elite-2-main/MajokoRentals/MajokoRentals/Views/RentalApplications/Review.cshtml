@@ -1,0 +1,89 @@
+@model MajokoRentals.Core.ViewModels.ReviewApplicationViewModel
+
+@{
+    ViewData["Title"] = "Review Application";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-clipboard-check me-2"></i>Review Rental Application
+                </h2>
+
+                <div class="alert alert-info mb-4">
+                    <strong>Applicant:</strong> @Model.ApplicantName<br />
+                    <strong>Property:</strong> @Model.PropertyName
+                </div>
+
+                <form asp-action="Review" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <input type="hidden" asp-for="ApplicationId" />
+                    <input type="hidden" asp-for="ApplicantName" />
+                    <input type="hidden" asp-for="PropertyName" />
+
+                    <div class="mb-4">
+                        <label asp-for="Status" class="form-label"></label>
+                        <select asp-for="Status" class="form-select" id="statusSelect">
+                            <option value="">-- Select Decision --</option>
+                            <option value="@ApplicationStatus.Approved">Approve Application</option>
+                            <option value="@ApplicationStatus.Rejected">Reject Application</option>
+                        </select>
+                        <span asp-validation-for="Status" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="ReviewNotes" class="form-label"></label>
+                        <textarea asp-for="ReviewNotes" class="form-control" rows="5" placeholder="Add any internal notes about this application (optional)..."></textarea>
+                        <span asp-validation-for="ReviewNotes" class="text-danger"></span>
+                        <small class="text-muted">These notes are for internal use only and will not be shared with the applicant.</small>
+                    </div>
+
+                    <div class="mb-4" id="rejectionReasonContainer" style="display: none;">
+                        <label asp-for="RejectionReason" class="form-label"></label>
+                        <textarea asp-for="RejectionReason" class="form-control" rows="4" placeholder="Provide a reason for rejection that will be communicated to the applicant..."></textarea>
+                        <span asp-validation-for="RejectionReason" class="text-danger"></span>
+                        <small class="text-muted">This message will be included in the email sent to the applicant.</small>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Important:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>The applicant will receive an email notification with your decision</li>
+                            <li>If approved, you should contact the applicant to arrange lease signing</li>
+                            <li>This action cannot be undone</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a asp-action="Details" asp-route-id="@Model.ApplicationId" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Submit Review
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Show/hide rejection reason based on decision
+        document.getElementById('statusSelect').addEventListener('change', function() {
+            var rejectionReasonContainer = document.getElementById('rejectionReasonContainer');
+            var selectedValue = this.value;
+
+            if (selectedValue === '@ApplicationStatus.Rejected') {
+                rejectionReasonContainer.style.display = 'block';
+            } else {
+                rejectionReasonContainer.style.display = 'none';
+            }
+        });
+    </script>
+}

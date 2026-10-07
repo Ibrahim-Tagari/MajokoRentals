@@ -1,0 +1,240 @@
+@model MajokoRentals.Core.ViewModels.RegisterViewModel
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-accent">Create Account</h2>
+                    <p class="text-muted">Join Dr Majoko Projects</p>
+                </div>
+
+                <div id="errorMessage" class="alert alert-danger" style="display:none;"></div>
+
+                <form id="registerForm" asp-action="Register" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    <input type="hidden" id="firebaseIdToken" asp-for="FirebaseIdToken" />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="FirstName" class="form-label">First Name</label>
+                            <input asp-for="FirstName" id="firstNameInput" class="form-control" placeholder="John" />
+                            <span asp-validation-for="FirstName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="LastName" class="form-label">Last Name</label>
+                            <input asp-for="LastName" id="lastNameInput" class="form-control" placeholder="Doe" />
+                            <span asp-validation-for="LastName" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label">Email Address</label>
+                        <input asp-for="Email" id="emailInput" class="form-control" placeholder="john.doe@example.com" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="PhoneNumber" class="form-label">Phone Number (Optional)</label>
+                        <input asp-for="PhoneNumber" id="phoneInput" class="form-control" placeholder="+27 12 345 6789" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <input asp-for="Password" type="password" id="passwordInput" class="form-control" placeholder="Minimum 6 characters" />
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                        <small class="text-muted">Password must be at least 6 characters long.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
+                        <div class="input-group">
+                            <input asp-for="ConfirmPassword" type="password" id="confirmPasswordInput" class="form-control" placeholder="Re-enter password" />
+                            <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                                <i class="bi bi-eye" id="toggleConfirmPasswordIcon"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Role" class="form-label">I want to register as</label>
+                        <select asp-for="Role" id="roleInput" class="form-select">
+                            <option value="Tenant">Tenant - Looking for a property to rent</option>
+                            <option value="Applicant">Applicant - Applying for a property</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" id="registerButton" class="btn btn-primary btn-lg w-100 mb-3">
+                        <span id="registerButtonText"><i class="bi bi-person-plus me-2"></i>Create Account</span>
+                        <span id="registerSpinner" class="spinner-border spinner-border-sm me-2" style="display:none;"></span>
+                        <span id="registerLoadingText" style="display:none;">Creating account...</span>
+                    </button>
+
+                    <div class="text-center mt-3">
+                        <p class="text-muted">
+                            Already have an account?
+                            <a asp-action="Login" class="text-accent fw-bold">Sign in</a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "@(Configuration["Firebase:ApiKey"])",
+            authDomain: "@(Configuration["Firebase:AuthDomain"])",
+            projectId: "@(Configuration["Firebase:ProjectId"])",
+            storageBucket: "@(Configuration["Firebase:StorageBucket"])",
+            messagingSenderId: "@(Configuration["Firebase:MessagingSenderId"])",
+            appId: "@(Configuration["Firebase:AppId"])"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // Handle register form submission
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const firstName = document.getElementById('firstNameInput').value.trim();
+            const lastName = document.getElementById('lastNameInput').value.trim();
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            const confirmPassword = document.getElementById('confirmPasswordInput').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const registerButton = document.getElementById('registerButton');
+            const registerButtonText = document.getElementById('registerButtonText');
+            const registerSpinner = document.getElementById('registerSpinner');
+            const registerLoadingText = document.getElementById('registerLoadingText');
+
+            // Hide error message
+            errorDiv.style.display = 'none';
+
+            // Client-side validation
+            if (!firstName || !lastName || !email || !password) {
+                errorDiv.textContent = 'Please fill in all required fields.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                errorDiv.textContent = 'Passwords do not match.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (password.length < 6) {
+                errorDiv.textContent = 'Password must be at least 6 characters long.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Show loading state
+            registerButton.disabled = true;
+            registerButtonText.style.display = 'none';
+            registerSpinner.style.display = 'inline-block';
+            registerLoadingText.style.display = 'inline';
+
+            try {
+                // Create user with Firebase
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+
+                // Update display name
+                await userCredential.user.updateProfile({
+                    displayName: `${firstName} ${lastName}`
+                });
+
+                // Get Firebase ID token
+                const idToken = await userCredential.user.getIdToken();
+
+                // Set token in hidden field
+                document.getElementById('firebaseIdToken').value = idToken;
+
+                // Submit the form to server to create user profile
+                this.submit();
+            } catch (error) {
+                console.error('Firebase registration error:', error);
+
+                // Show error message
+                errorDiv.textContent = getErrorMessage(error.code);
+                errorDiv.style.display = 'block';
+
+                // Reset button state
+                registerButton.disabled = false;
+                registerButtonText.style.display = 'inline';
+                registerSpinner.style.display = 'none';
+                registerLoadingText.style.display = 'none';
+            }
+        });
+
+        function getErrorMessage(errorCode) {
+            switch (errorCode) {
+                case 'auth/email-already-in-use':
+                    return 'An account with this email already exists.';
+                case 'auth/invalid-email':
+                    return 'Invalid email address.';
+                case 'auth/operation-not-allowed':
+                    return 'Email/password accounts are not enabled.';
+                case 'auth/weak-password':
+                    return 'Password is too weak. Please use a stronger password.';
+                default:
+                    return 'An error occurred during registration. Please try again.';
+            }
+        }
+
+        // Password visibility toggle
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('passwordInput');
+            const toggleIcon = document.getElementById('togglePasswordIcon');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('bi-eye');
+                toggleIcon.classList.add('bi-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('bi-eye-slash');
+                toggleIcon.classList.add('bi-eye');
+            }
+        });
+
+        // Confirm Password visibility toggle
+        document.getElementById('toggleConfirmPassword').addEventListener('click', function() {
+            const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+            const toggleIcon = document.getElementById('toggleConfirmPasswordIcon');
+
+            if (confirmPasswordInput.type === 'password') {
+                confirmPasswordInput.type = 'text';
+                toggleIcon.classList.remove('bi-eye');
+                toggleIcon.classList.add('bi-eye-slash');
+            } else {
+                confirmPasswordInput.type = 'password';
+                toggleIcon.classList.remove('bi-eye-slash');
+                toggleIcon.classList.add('bi-eye');
+            }
+        });
+    </script>
+}

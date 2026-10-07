@@ -1,0 +1,50 @@
+@page "/dashboard"
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard - Dr Majoko Projects</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        @{
+            // Route to appropriate dashboard based on role
+            var roles = context.User.Claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Select(c => c.Value)
+                .ToList();
+
+            if (roles.Contains("Admin") || roles.Contains("PropertyManager"))
+            {
+                Navigation.NavigateTo("/dashboard/admin", forceLoad: true);
+            }
+            else if (roles.Contains("Tenant"))
+            {
+                Navigation.NavigateTo("/dashboard/tenant", forceLoad: true);
+            }
+            else if (roles.Contains("Caretaker"))
+            {
+                Navigation.NavigateTo("/maintenance", forceLoad: true);
+            }
+            else
+            {
+                Navigation.NavigateTo("/applications/my", forceLoad: true);
+            }
+        }
+
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Redirecting to your dashboard...</p>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Please <a href="/account/login">sign in</a> to view your dashboard.
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    // This page acts as a router to different dashboard views based on user role
+}

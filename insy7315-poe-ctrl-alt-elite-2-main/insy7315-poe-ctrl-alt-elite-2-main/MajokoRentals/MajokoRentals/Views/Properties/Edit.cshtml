@@ -1,0 +1,242 @@
+@model MajokoRentals.Core.ViewModels.EditPropertyViewModel
+
+@{
+    ViewData["Title"] = "Edit Property";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-pencil me-2"></i>Edit Property
+                </h2>
+
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <input type="hidden" asp-for="Id" />
+
+                    <!-- Basic Information -->
+                    <h4 class="mb-3">Basic Information</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="Name" class="form-label"></label>
+                            <input asp-for="Name" class="form-control" />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Status" class="form-label"></label>
+                            <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<PropertyStatus>()"></select>
+                            <span asp-validation-for="Status" class="text-danger"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Description" class="form-label"></label>
+                            <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Address Information -->
+                    <h4 class="mb-3">Address</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <label asp-for="Address" class="form-label"></label>
+                            <input asp-for="Address" class="form-control" />
+                            <span asp-validation-for="Address" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="City" class="form-label"></label>
+                            <input asp-for="City" class="form-control" />
+                            <span asp-validation-for="City" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Province" class="form-label"></label>
+                            <input asp-for="Province" class="form-control" />
+                            <span asp-validation-for="Province" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="PostalCode" class="form-label"></label>
+                            <input asp-for="PostalCode" class="form-control" />
+                            <span asp-validation-for="PostalCode" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Latitude" class="form-label"></label>
+                            <input asp-for="Latitude" class="form-control" step="0.000001" />
+                            <span asp-validation-for="Latitude" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Longitude" class="form-label"></label>
+                            <input asp-for="Longitude" class="form-control" step="0.000001" />
+                            <span asp-validation-for="Longitude" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Property Details -->
+                    <h4 class="mb-3">Property Details</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label asp-for="Bedrooms" class="form-label"></label>
+                            <input asp-for="Bedrooms" class="form-control" type="number" min="1" max="10" />
+                            <span asp-validation-for="Bedrooms" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Bathrooms" class="form-label"></label>
+                            <input asp-for="Bathrooms" class="form-control" type="number" min="1" max="10" />
+                            <span asp-validation-for="Bathrooms" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="SquareMeters" class="form-label"></label>
+                            <input asp-for="SquareMeters" class="form-control" type="number" min="1" />
+                            <span asp-validation-for="SquareMeters" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Financial Information -->
+                    <h4 class="mb-3">Financial Information</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="MonthlyRent" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">R</span>
+                                <input asp-for="MonthlyRent" class="form-control" type="number" step="0.01" min="0.01" />
+                            </div>
+                            <span asp-validation-for="MonthlyRent" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="SecurityDeposit" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">R</span>
+                                <input asp-for="SecurityDeposit" class="form-control" type="number" step="0.01" min="0.01" />
+                            </div>
+                            <span asp-validation-for="SecurityDeposit" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Amenities -->
+                    <h4 class="mb-3">Amenities</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-12">
+                            <small class="text-muted">Select amenities available at this property</small>
+                            <div class="row mt-2">
+                                @{
+                                    var commonAmenities = new[] { "WiFi", "Parking", "Garden", "Security", "Pool", "Air Conditioning", "Heating", "Dishwasher", "Washing Machine", "Dryer", "Fireplace", "Balcony" };
+                                    foreach (var amenity in commonAmenities)
+                                    {
+                                        var isChecked = Model.Amenities.Contains(amenity);
+                                        <div class="col-md-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input amenity-checkbox" type="checkbox" value="@amenity" id="amenity_@amenity.Replace(" ", "")" @(isChecked ? "checked" : "") />
+                                                <label class="form-check-label" for="amenity_@amenity.Replace(" ", "")">
+                                                    @amenity
+                                                </label>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Existing Images -->
+                    @if (Model.ExistingImages.Any())
+                    {
+                        <h4 class="mb-3">Existing Images</h4>
+                        <div class="row g-3 mb-4">
+                            @foreach (var image in Model.ExistingImages)
+                            {
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <img src="@image" class="card-img-top" alt="Property" style="height: 150px; object-fit: cover;" />
+                                        <div class="card-body p-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input image-delete-checkbox" type="checkbox" value="@image" id="delete_@image.GetHashCode()" />
+                                                <label class="form-check-label text-danger small" for="delete_@image.GetHashCode()">
+                                                    Delete
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- Add New Images -->
+                    <h4 class="mb-3">Add New Images</h4>
+                    <div class="mb-4">
+                        <label asp-for="NewImageFiles" class="form-label"></label>
+                        <input asp-for="NewImageFiles" class="form-control" type="file" multiple accept="image/*" />
+                        <small class="text-muted">You can select multiple images. Supported formats: JPG, PNG (max 5MB each)</small>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back
+                        </a>
+                        <div class="d-flex gap-2">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>Update Property
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+            // Handle amenities checkboxes
+            function updateAmenities() {
+                var amenities = [];
+                $('.amenity-checkbox:checked').each(function () {
+                    amenities.push($(this).val());
+                });
+
+                // Remove existing hidden inputs
+                $('input[name^="Amenities"]').remove();
+
+                // Add new hidden inputs for each selected amenity
+                amenities.forEach(function (amenity, index) {
+                    $('<input>').attr({
+                        type: 'hidden',
+                        name: 'Amenities[' + index + ']',
+                        value: amenity
+                    }).appendTo('form');
+                });
+            }
+
+            $('.amenity-checkbox').on('change', updateAmenities);
+            updateAmenities(); // Initialize on page load
+
+            // Handle image deletion
+            function updateImagesToDelete() {
+                var imagesToDelete = [];
+                $('.image-delete-checkbox:checked').each(function () {
+                    imagesToDelete.push($(this).val());
+                });
+
+                // Remove existing hidden inputs
+                $('input[name^="ImagesToDelete"]').remove();
+
+                // Add new hidden inputs for each image to delete
+                imagesToDelete.forEach(function (image, index) {
+                    $('<input>').attr({
+                        type: 'hidden',
+                        name: 'ImagesToDelete[' + index + ']',
+                        value: image
+                    }).appendTo('form');
+                });
+            }
+
+            $('.image-delete-checkbox').on('change', updateImagesToDelete);
+        });
+    </script>
+}

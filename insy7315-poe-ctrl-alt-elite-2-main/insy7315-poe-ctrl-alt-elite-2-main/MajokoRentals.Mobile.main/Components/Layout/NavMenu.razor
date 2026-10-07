@@ -1,0 +1,177 @@
+﻿@using MajokoRentals.Mobile.main.Services
+@inject ILocalizationService Localization
+@implements IDisposable
+
+<div class="nav-scrollable">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> @Localization.GetString("Nav_Home")
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="properties">
+                <span class="bi bi-building" aria-hidden="true"></span> @Localization.GetString("Nav_Properties")
+            </NavLink>
+        </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <!-- Dashboard (All authenticated users) -->
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="dashboard">
+                        <span class="bi bi-speedometer2" aria-hidden="true"></span> @Localization.GetString("Nav_Dashboard")
+                    </NavLink>
+                </div>
+
+                <!-- Sync Status Badge -->
+                <div class="nav-item px-3 py-2">
+                    <SyncStatusBadge />
+                </div>
+
+                <!-- Admin & Property Manager Menu -->
+                <AuthorizeView Roles="Admin,PropertyManager" Context="adminContext">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="leases">
+                                <span class="bi bi-file-text" aria-hidden="true"></span> @Localization.GetString("Nav_Leases")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="invoices">
+                                <span class="bi bi-receipt" aria-hidden="true"></span> @Localization.GetString("Nav_Invoices")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="applications">
+                                <span class="bi bi-file-earmark-text" aria-hidden="true"></span> @Localization.GetString("Nav_Applications")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="maintenance">
+                                <span class="bi bi-tools" aria-hidden="true"></span> @Localization.GetString("Nav_Maintenance")
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <!-- Tenant Menu -->
+                <AuthorizeView Roles="Tenant" Context="tenantContext">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="leases/my">
+                                <span class="bi bi-file-text" aria-hidden="true"></span> @Localization.GetString("Nav_MyLease")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="invoices/my">
+                                <span class="bi bi-receipt" aria-hidden="true"></span> @Localization.GetString("Nav_MyInvoices")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="maintenance/my">
+                                <span class="bi bi-tools" aria-hidden="true"></span> @Localization.GetString("Nav_Maintenance")
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <!-- Applicant Menu -->
+                <AuthorizeView Roles="Applicant" Context="applicantContext">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="applications/my">
+                                <span class="bi bi-file-earmark-text" aria-hidden="true"></span> @Localization.GetString("Nav_MyApplications")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="applications/create">
+                                <span class="bi bi-plus-circle" aria-hidden="true"></span> @Localization.GetString("Nav_ApplyNow")
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <!-- Caretaker Menu -->
+                <AuthorizeView Roles="Caretaker" Context="caretakerContext">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="maintenance/assigned">
+                                <span class="bi bi-tools" aria-hidden="true"></span> @Localization.GetString("Nav_AssignedTasks")
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <!-- Profile & Logout -->
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="account/profile">
+                        <span class="bi bi-person-circle" aria-hidden="true"></span> @Localization.GetString("Nav_Profile")
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="#" @onclick="HandleLogout" @onclick:preventDefault>
+                        <span class="bi bi-box-arrow-right" aria-hidden="true"></span> @Localization.GetString("Nav_Logout")
+                    </a>
+                </div>
+            </Authorized>
+
+            <NotAuthorized>
+                <!-- Guest Menu -->
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="account/login">
+                        <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> @Localization.GetString("Nav_Login")
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="account/register">
+                        <span class="bi bi-person-plus" aria-hidden="true"></span> @Localization.GetString("Nav_Register")
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </nav>
+</div>
+
+@code {
+    [Inject] private IAuthenticationService? AuthService { get; set; }
+    [Inject] private CustomAuthenticationStateProvider? AuthStateProvider { get; set; }
+    [Inject] private NavigationManager? Navigation { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to language changes
+        if (Localization != null)
+        {
+            Localization.LanguageChanged += OnLanguageChanged;
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, LanguageChangedEventArgs e)
+    {
+        // Trigger UI refresh when language changes
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleLogout()
+    {
+        if (AuthService != null && AuthStateProvider != null && Navigation != null)
+        {
+            await AuthService.LogoutAsync();
+            AuthStateProvider.NotifyUserLogout();
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from language changes
+        if (Localization != null)
+        {
+            Localization.LanguageChanged -= OnLanguageChanged;
+        }
+    }
+}

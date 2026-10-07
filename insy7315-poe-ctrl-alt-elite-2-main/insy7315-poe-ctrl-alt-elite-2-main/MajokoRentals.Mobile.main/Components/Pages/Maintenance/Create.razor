@@ -1,0 +1,404 @@
+@page "/maintenance/create"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using MajokoRentals.Mobile.Data
+@using MajokoRentals.Mobile.Data.LocalModels
+@using MajokoRentals.Mobile.main.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Text.Json
+@attribute [Authorize(Roles = "Admin,PropertyManager,Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+@inject LocalDbContext LocalDb
+@inject IConnectivityService ConnectivityService
+@inject IOfflineFileService OfflineFileService
+@inject IAuthenticationService AuthService
+@inject IDataCacheService DataCacheService
+@inject ILocalizationService Localization
+@implements IDisposable
+
+<PageTitle>Create Maintenance Request - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>@Localization.GetString("Btn_Cancel")
+    </button>
+
+    @* Offline Indicator *@
+    @if (!isOnline)
+    {
+        <span class="badge bg-warning ms-2">
+            <i class="bi bi-wifi-off me-1"></i>@Localization.GetString("Maint_OfflineMode")
+        </span>
+    }
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h3 class="card-title mb-4">
+            <i class="bi bi-tools me-2"></i>@Localization.GetString("Maint_CreateTitle")
+        </h3>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i>@successMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+            </div>
+        }
+
+        @if (!isOnline)
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>@Localization.GetString("Maint_OfflineMode"):</strong> @Localization.GetString("Maint_OfflineMessage")
+                @if (properties.Count == 0)
+                {
+                    <br />
+                    <small class="text-warning">No properties cached. You may need to go online first to load properties.</small>
+                }
+            </div>
+        }
+
+        @if (isLoadingProperties)
+        {
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2">@Localization.GetString("Common_Loading")</p>
+            </div>
+        }
+        else
+        {
+            <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="mb-3">
+                    <label class="form-label">@Localization.GetString("Maint_Property") @Localization.GetString("Common_Required")</label>
+                    <InputSelect @bind-Value="model.PropertyId" class="form-select" disabled="@(properties.Count == 0)">
+                        <option value="0">@Localization.GetString("Maint_SelectProperty")</option>
+                        @foreach (var property in properties)
+                        {
+                            <option value="@property.Id">@property.DisplayText</option>
+                        }
+                    </InputSelect>
+                    @if (properties.Count == 0)
+                    {
+                        <small class="text-danger">No properties available. Please connect to the internet to load properties.</small>
+                    }
+                    else if (!isOnline)
+                    {
+                        <small class="text-muted">Showing @properties.Count cached property(ies)</small>
+                    }
+                    <ValidationMessage For="@(() => model.PropertyId)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">@Localization.GetString("Maint_Title_Field") @Localization.GetString("Common_Required")</label>
+                    <InputText @bind-Value="model.Title" class="form-control" placeholder="@Localization.GetString("Maint_TitlePlaceholder")" />
+                    <ValidationMessage For="@(() => model.Title)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">@Localization.GetString("Maint_Description") @Localization.GetString("Common_Required")</label>
+                    <InputTextArea @bind-Value="model.Description" class="form-control" rows="4" placeholder="@Localization.GetString("Maint_DescriptionPlaceholder")" />
+                    <ValidationMessage For="@(() => model.Description)" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">@Localization.GetString("Maint_Category") @Localization.GetString("Common_Required")</label>
+                        <InputSelect @bind-Value="model.Category" class="form-select">
+                            <option value="@MaintenanceCategory.Plumbing">@Localization.GetString("Category_Plumbing")</option>
+                            <option value="@MaintenanceCategory.Electrical">@Localization.GetString("Category_Electrical")</option>
+                            <option value="@MaintenanceCategory.Carpentry">@Localization.GetString("Category_Carpentry")</option>
+                            <option value="@MaintenanceCategory.Painting">@Localization.GetString("Category_Painting")</option>
+                            <option value="@MaintenanceCategory.Cleaning">@Localization.GetString("Category_Cleaning")</option>
+                            <option value="@MaintenanceCategory.Appliance">@Localization.GetString("Category_Appliance")</option>
+                            <option value="@MaintenanceCategory.Security">@Localization.GetString("Category_Security")</option>
+                            <option value="@MaintenanceCategory.Other">@Localization.GetString("Category_Other")</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">@Localization.GetString("Maint_Priority") @Localization.GetString("Common_Required")</label>
+                        <InputSelect @bind-Value="model.Priority" class="form-select">
+                            <option value="@MaintenancePriority.Low">@Localization.GetString("Priority_Low")</option>
+                            <option value="@MaintenancePriority.Medium">@Localization.GetString("Priority_Medium")</option>
+                            <option value="@MaintenancePriority.High">@Localization.GetString("Priority_High")</option>
+                            <option value="@MaintenancePriority.Emergency">@Localization.GetString("Priority_Emergency")</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">@Localization.GetString("Maint_Location")</label>
+                    <InputText @bind-Value="model.Location" class="form-control" placeholder="@Localization.GetString("Maint_LocationPlaceholder")" />
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>@Localization.GetString("Maint_Submitting")</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span>@Localization.GetString("Maint_SubmitRequest")</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isSubmitting">
+                        @Localization.GetString("Btn_Cancel")
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private CreateMaintenanceRequestDto model = new()
+    {
+        Priority = MaintenancePriority.Medium,
+        Category = MaintenanceCategory.Other
+    };
+
+    private List<CachedPropertyDto> properties = new();
+    private bool isLoadingProperties = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isOnline => ConnectivityService.IsConnected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProperties();
+
+        // Subscribe to connectivity changes
+        ConnectivityService.ConnectivityChanged += OnConnectivityChanged;
+
+        // Subscribe to language changes
+        if (Localization != null)
+        {
+            Localization.LanguageChanged += OnLanguageChanged;
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, LanguageChangedEventArgs e)
+    {
+        // Trigger UI refresh when language changes
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            if (e.IsConnected)
+            {
+                // Reload properties when back online
+                await LoadProperties();
+            }
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadProperties()
+    {
+        try
+        {
+            isLoadingProperties = true;
+            errorMessage = null;
+
+            if (isOnline)
+            {
+                // Online: Fetch from API and cache for offline use
+                var apiProperties = await ApiClient.GetAsync<List<PropertyListDto>>("/api/properties");
+
+                if (apiProperties != null && apiProperties.Any())
+                {
+                    // Convert to cached format
+                    properties = apiProperties.Select(p => new CachedPropertyDto
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Address = p.Address
+                    }).ToList();
+
+                    // Cache in background
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await DataCacheService.CachePropertiesAsync();
+                        }
+                        catch { /* Silent fail - caching is optional */ }
+                    });
+                }
+                else
+                {
+                    properties = new();
+                }
+            }
+            else
+            {
+                // Offline: Load from cache
+                properties = await DataCacheService.GetCachedPropertiesAsync();
+
+                if (properties.Count == 0)
+                {
+                    errorMessage = "No properties cached. Please connect to the internet to load properties first.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load properties: {ex.Message}";
+
+            // Try loading from cache as fallback
+            try
+            {
+                properties = await DataCacheService.GetCachedPropertiesAsync();
+                if (properties.Count > 0)
+                {
+                    errorMessage = "Using cached properties. Some data may be outdated.";
+                }
+            }
+            catch { /* Ignore cache errors */ }
+        }
+        finally
+        {
+            isLoadingProperties = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+            successMessage = null;
+
+            if (isOnline)
+            {
+                // Online: Submit to API
+                var result = await ApiClient.PostAsync<CreateMaintenanceRequestDto, MaintenanceRequestDto>("/api/maintenance", model);
+
+                if (result != null)
+                {
+                    Navigation.NavigateTo($"/maintenance/details/{result.Id}");
+                }
+                else
+                {
+                    errorMessage = "Failed to create request. Please try again.";
+                }
+            }
+            else
+            {
+                // Offline: Save to local database
+                await SaveOfflineAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task SaveOfflineAsync()
+    {
+        try
+        {
+            var userInfo = await AuthService.GetUserInfoAsync();
+            if (userInfo == null)
+            {
+                errorMessage = "User authentication required.";
+                return;
+            }
+
+            var localRequest = new LocalMaintenanceRequest
+            {
+                PropertyId = model.PropertyId,
+                Title = model.Title,
+                Description = model.Description,
+                Category = model.Category,
+                Priority = model.Priority,
+                Location = model.Location,
+                ReportedById = userInfo.UserId ?? string.Empty,
+                ReportedDate = DateTime.UtcNow,
+                Status = MaintenanceStatus.Pending,
+                IsSynced = false,
+                CreatedLocally = DateTime.UtcNow,
+                ModifiedLocally = DateTime.UtcNow
+            };
+
+            LocalDb.MaintenanceRequests.Add(localRequest);
+            await LocalDb.SaveChangesAsync();
+
+            successMessage = "Request saved! It will be submitted automatically when you're back online.";
+
+            // Clear form
+            model = new CreateMaintenanceRequestDto
+            {
+                Priority = MaintenancePriority.Medium,
+                Category = MaintenanceCategory.Other
+            };
+
+            // Navigate back after a delay
+            await Task.Delay(2000);
+
+            // Navigate to the correct page based on user role (reuse userInfo from above)
+            if (userInfo?.Roles?.Contains("Tenant") == true)
+            {
+                Navigation.NavigateTo("/maintenance/my", forceLoad: true);
+            }
+            else
+            {
+                Navigation.NavigateTo("/maintenance", forceLoad: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to save offline: {ex.Message}";
+        }
+    }
+
+    private async void GoBack()
+    {
+        var userInfo = await AuthService.GetUserInfoAsync();
+        if (userInfo?.Roles?.Contains("Tenant") == true)
+        {
+            Navigation.NavigateTo("/maintenance/my");
+        }
+        else
+        {
+            Navigation.NavigateTo("/maintenance");
+        }
+    }
+
+    public void Dispose()
+    {
+        ConnectivityService.ConnectivityChanged -= OnConnectivityChanged;
+
+        // Unsubscribe from language changes
+        if (Localization != null)
+        {
+            Localization.LanguageChanged -= OnLanguageChanged;
+        }
+    }
+}

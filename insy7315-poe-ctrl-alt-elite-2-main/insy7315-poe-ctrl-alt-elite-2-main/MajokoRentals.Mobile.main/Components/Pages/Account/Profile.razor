@@ -1,0 +1,495 @@
+@page "/account/profile"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using MajokoRentals.Mobile.main.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ILocalizationService LocalizationService
+@inject IPushNotificationService NotificationService
+
+<PageTitle>My Profile - Dr Majoko Projects</PageTitle>
+
+<div class="mb-4">
+    <h2><i class="bi bi-person-circle me-2"></i>My Profile</h2>
+    <p class="text-muted">Manage your account information</p>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading profile...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (profile != null)
+{
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>@successMessage
+        </div>
+    }
+
+    <!-- Profile Information Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Profile Information</h5>
+                <button class="btn btn-sm btn-outline-primary" @onclick="ToggleEdit">
+                    <i class="bi bi-@(isEditing ? "x" : "pencil") me-1"></i>@(isEditing ? "Cancel" : "Edit")
+                </button>
+            </div>
+
+            @if (!isEditing)
+            {
+                <!-- View Mode -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong><i class="bi bi-person me-2"></i>Name</strong>
+                        <p class="mb-0">@profile.FirstName @profile.LastName</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong><i class="bi bi-envelope me-2"></i>Email</strong>
+                        <p class="mb-0">@profile.Email</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong><i class="bi bi-telephone me-2"></i>Phone Number</strong>
+                        <p class="mb-0">@(string.IsNullOrWhiteSpace(profile.PhoneNumber) ? "Not provided" : profile.PhoneNumber)</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong><i class="bi bi-shield-check me-2"></i>Role</strong>
+                        <p class="mb-0">
+                            <span class="badge bg-primary">@profile.Role</span>
+                        </p>
+                    </div>
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>Member since: @profile.CreatedAt.ToString("MMM dd, yyyy")
+                        </small>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Edit Mode -->
+                <EditForm Model="@updateModel" OnValidSubmit="HandleUpdateProfile">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger mb-3" />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name *</label>
+                            <InputText @bind-Value="updateModel.FirstName" class="form-control" />
+                            <ValidationMessage For="@(() => updateModel.FirstName)" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name *</label>
+                            <InputText @bind-Value="updateModel.LastName" class="form-control" />
+                            <ValidationMessage For="@(() => updateModel.LastName)" />
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <InputText @bind-Value="updateModel.PhoneNumber" class="form-control" placeholder="+27 XX XXX XXXX" />
+                            <ValidationMessage For="@(() => updateModel.PhoneNumber)" />
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>Save Changes</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </div>
+
+    <!-- Preferences Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Preferences</h5>
+                <button class="btn btn-sm btn-outline-primary" @onclick="TogglePreferencesEdit">
+                    <i class="bi bi-@(isEditingPreferences ? "x" : "pencil") me-1"></i>@(isEditingPreferences ? "Cancel" : "Edit")
+                </button>
+            </div>
+
+            @if (!isEditingPreferences)
+            {
+                <!-- View Mode -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong><i class="bi bi-translate me-2"></i>Language</strong>
+                        <p class="mb-0">@GetLanguageDisplayName(profile.PreferredLanguage)</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Edit Mode -->
+                <EditForm Model="@preferencesModel" OnValidSubmit="HandleUpdatePreferences">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger mb-3" />
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label"><i class="bi bi-translate me-1"></i>Language *</label>
+                            <InputSelect @bind-Value="preferencesModel.PreferredLanguage" class="form-select">
+                                <option value="@Language.English">English</option>
+                                <option value="@Language.Zulu">Zulu (isiZulu)</option>
+                                <option value="@Language.Sesotho">Sesotho</option>
+                            </InputSelect>
+                            <small class="text-muted mt-1 d-block">Select your preferred language for the application</small>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success" disabled="@isSubmittingPreferences">
+                            @if (isSubmittingPreferences)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>Save Preferences</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </div>
+
+    <!-- Account Security Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Account Security</h5>
+            <p class="text-muted mb-3">
+                Email: <strong>@profile.Email</strong>
+            </p>
+            <p class="text-muted">
+                To change your email address or password, please contact your property manager or administrator.
+            </p>
+        </div>
+    </div>
+
+    <!-- Notifications Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Notifications</h5>
+            <p class="text-muted mb-3">
+                Test push notification functionality
+            </p>
+            <button class="btn btn-primary" @onclick="SendTestNotification" disabled="@isSendingNotification">
+                @if (isSendingNotification)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <span>Sending...</span>
+                }
+                else
+                {
+                    <i class="bi bi-bell me-2"></i>
+                    <span>Send Test Notification</span>
+                }
+            </button>
+            @if (!string.IsNullOrEmpty(notificationMessage))
+            {
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle me-2"></i>@notificationMessage
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Quick Actions Card -->
+    @if (profile.Role == "Tenant")
+    {
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Quick Actions</h5>
+                <div class="row g-2">
+                    <div class="col-6 col-md-3">
+                        <a href="/leases/my" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-file-text d-block mb-1"></i>
+                            My Lease
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="/invoices/my" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-receipt d-block mb-1"></i>
+                            My Invoices
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="/maintenance/my" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-tools d-block mb-1"></i>
+                            Maintenance
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="/maintenance/create" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-plus-circle d-block mb-1"></i>
+                            Report Issue
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private UserProfile? profile;
+    private UpdateProfileDto updateModel = new();
+    private PreferencesDto preferencesModel = new();
+    private bool isLoading = true;
+    private bool isEditing = false;
+    private bool isEditingPreferences = false;
+    private bool isSubmitting = false;
+    private bool isSubmittingPreferences = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isSendingNotification = false;
+    private string? notificationMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private async Task LoadProfile()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            // Get the current user's profile
+            profile = await ApiClient.GetAsync<UserProfile>("/api/users/profile");
+
+            if (profile == null)
+            {
+                errorMessage = "Failed to load profile.";
+            }
+            else
+            {
+                // Initialize update model with current values
+                updateModel = new UpdateProfileDto
+                {
+                    FirstName = profile.FirstName,
+                    LastName = profile.LastName,
+                    PhoneNumber = profile.PhoneNumber
+                };
+
+                // Initialize preferences model
+                preferencesModel = new PreferencesDto
+                {
+                    PreferredLanguage = profile.PreferredLanguage
+                };
+
+                // Sync language from profile if different from current
+                if (LocalizationService.CurrentLanguage != profile.PreferredLanguage)
+                {
+                    await LocalizationService.SetLanguageAsync(profile.PreferredLanguage);
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading profile: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ToggleEdit()
+    {
+        isEditing = !isEditing;
+        successMessage = null;
+
+        if (isEditing && profile != null)
+        {
+            // Reset update model when entering edit mode
+            updateModel = new UpdateProfileDto
+            {
+                FirstName = profile.FirstName,
+                LastName = profile.LastName,
+                PhoneNumber = profile.PhoneNumber
+            };
+        }
+    }
+
+    private async Task HandleUpdateProfile()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+            successMessage = null;
+
+            var result = await ApiClient.PutAsync<UpdateProfileDto, UserProfile>("/api/users/profile", updateModel);
+
+            if (result != null)
+            {
+                profile = result;
+                successMessage = "Profile updated successfully!";
+                isEditing = false;
+            }
+            else
+            {
+                errorMessage = "Failed to update profile. Please try again.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void TogglePreferencesEdit()
+    {
+        isEditingPreferences = !isEditingPreferences;
+        successMessage = null;
+
+        if (isEditingPreferences && profile != null)
+        {
+            // Reset preferences model when entering edit mode
+            preferencesModel = new PreferencesDto
+            {
+                PreferredLanguage = profile.PreferredLanguage
+            };
+        }
+    }
+
+    private async Task HandleUpdatePreferences()
+    {
+        try
+        {
+            isSubmittingPreferences = true;
+            errorMessage = null;
+            successMessage = null;
+
+            // Update language via localization service (stores locally)
+            await LocalizationService.SetLanguageAsync(preferencesModel.PreferredLanguage);
+
+            // Update the language in the user's profile via API
+            if (profile != null)
+            {
+                profile.PreferredLanguage = preferencesModel.PreferredLanguage;
+                profile.UpdatedAt = DateTime.UtcNow;
+
+                // Create update DTO with language preference
+                var languageUpdateDto = new
+                {
+                    PreferredLanguage = preferencesModel.PreferredLanguage
+                };
+
+                // Update via API
+                try
+                {
+                    await ApiClient.PutAsync<object, object>("/api/users/profile/language", languageUpdateDto);
+                }
+                catch (Exception apiEx)
+                {
+                    // Log but don't fail - language is already set locally
+                    System.Diagnostics.Debug.WriteLine($"Failed to update language on server: {apiEx.Message}");
+                }
+            }
+
+            successMessage = "Language preference updated successfully! The app will now use your selected language.";
+            isEditingPreferences = false;
+
+            // Trigger page refresh to apply new language
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmittingPreferences = false;
+        }
+    }
+
+    private string GetLanguageDisplayName(Language language)
+    {
+        return language switch
+        {
+            Language.English => "English",
+            Language.Zulu => "Zulu (isiZulu)",
+            Language.Sesotho => "Sesotho",
+            _ => "Unknown"
+        };
+    }
+
+    private async Task SendTestNotification()
+    {
+        try
+        {
+            isSendingNotification = true;
+            notificationMessage = null;
+
+            await NotificationService.ShowTestNotificationAsync();
+            notificationMessage = "Test notification sent! You should receive it in a moment.";
+        }
+        catch (Exception ex)
+        {
+            notificationMessage = $"Failed to send notification: {ex.Message}";
+        }
+        finally
+        {
+            isSendingNotification = false;
+        }
+    }
+
+    public class UpdateProfileDto
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string? PhoneNumber { get; set; }
+    }
+
+    public class PreferencesDto
+    {
+        public Language PreferredLanguage { get; set; } = Language.English;
+    }
+}

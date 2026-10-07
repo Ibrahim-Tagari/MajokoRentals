@@ -1,0 +1,101 @@
+@model IEnumerable<MajokoRentals.Core.ViewModels.RentalApplicationListViewModel>
+
+@{
+    ViewData["Title"] = "My Applications";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-person me-2"></i>My Applications</h2>
+    <a asp-action="Create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>New Application
+    </a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card shadow">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+            <h4 class="mt-4 mb-3">No Applications Yet</h4>
+            <p class="text-muted mb-4">You haven't submitted any rental applications yet.</p>
+            <a asp-controller="Properties" asp-action="Index" class="btn btn-primary">
+                <i class="bi bi-search me-1"></i>Browse Available Properties
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var application in Model)
+        {
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0">@application.PropertyName</h5>
+                            <span class="badge bg-@(application.Status == ApplicationStatus.Approved ? "success" : application.Status == ApplicationStatus.Rejected ? "danger" : "warning")">
+                                @application.Status
+                            </span>
+                        </div>
+
+                        <p class="text-muted small mb-3">
+                            <i class="bi bi-geo-alt me-1"></i>@application.PropertyAddress
+                        </p>
+
+                        <div class="mb-3">
+                            <div class="row g-2 small">
+                                <div class="col-6">
+                                    <i class="bi bi-calendar-event text-primary me-1"></i>
+                                    <strong>Submitted:</strong><br />
+                                    <span class="text-muted">@application.ApplicationDate.ToString("MMM dd, yyyy")</span>
+                                </div>
+                                @if (application.Status == ApplicationStatus.Submitted)
+                                {
+                                    <div class="col-6">
+                                        <i class="bi bi-hourglass-split text-warning me-1"></i>
+                                        <strong>Pending:</strong><br />
+                                        <span class="text-muted">@application.DaysPending days</span>
+                                    </div>
+                                }
+                                @if (application.ReviewedDate.HasValue)
+                                {
+                                    <div class="col-12 mt-2">
+                                        <i class="bi bi-check-circle text-success me-1"></i>
+                                        <strong>Reviewed:</strong><br />
+                                        <span class="text-muted">@application.ReviewedDate.Value.ToString("MMM dd, yyyy") by @application.ReviewedByName</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @if (application.Status == ApplicationStatus.Submitted)
+                        {
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>Your application is being reviewed. You will be notified via email once a decision is made.
+                            </div>
+                        }
+                        else if (application.Status == ApplicationStatus.Approved)
+                        {
+                            <div class="alert alert-success small mb-3">
+                                <i class="bi bi-check-circle me-1"></i>Congratulations! Your application has been approved. We will contact you shortly.
+                            </div>
+                        }
+                        else if (application.Status == ApplicationStatus.Rejected)
+                        {
+                            <div class="alert alert-danger small mb-3">
+                                <i class="bi bi-x-circle me-1"></i>Unfortunately, your application was not approved at this time.
+                            </div>
+                        }
+
+                        <div class="d-grid">
+                            <a asp-action="Details" asp-route-id="@application.Id" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-eye me-1"></i>View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

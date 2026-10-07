@@ -1,0 +1,189 @@
+@page "/leases/edit/{id}"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Lease - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Cancel
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading lease...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(loadErrorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@loadErrorMessage
+    </div>
+}
+else if (model != null && lease != null)
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="card-title mb-4">
+                <i class="bi bi-pencil me-2"></i>Edit Lease
+            </h3>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+                </div>
+            }
+
+            <!-- Read-only info -->
+            <div class="alert alert-info">
+                <h6>Lease Information</h6>
+                <p class="mb-1"><strong>Property:</strong> @lease.PropertyName</p>
+                <p class="mb-1"><strong>Tenant:</strong> @lease.TenantName</p>
+                <p class="mb-0"><strong>Start Date:</strong> @lease.StartDate.ToString("dd MMM yyyy")</p>
+            </div>
+
+            <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="mb-3">
+                    <label class="form-label">End Date</label>
+                    <InputDate @bind-Value="model.EndDate" class="form-control" />
+                    <small class="text-muted">Current: @lease.EndDate.ToString("dd MMM yyyy")</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Monthly Rent (R)</label>
+                    <InputNumber @bind-Value="model.MonthlyRent" class="form-control" placeholder="@lease.MonthlyRent" />
+                    <small class="text-muted">Current: R @lease.MonthlyRent.ToString("N2")</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <InputSelect @bind-Value="model.Status" class="form-select">
+                        <option value="">-- Keep Current --</option>
+                        <option value="@LeaseStatus.Draft">Draft</option>
+                        <option value="@LeaseStatus.Active">Active</option>
+                        <option value="@LeaseStatus.Expired">Expired</option>
+                        <option value="@LeaseStatus.Terminated">Terminated</option>
+                    </InputSelect>
+                    <small class="text-muted">Current: @lease.Status</small>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Updating Lease...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span>Update Lease</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isSubmitting">
+                        Cancel
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    private LeaseDto? lease;
+    private UpdateLeaseDto? model;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string? loadErrorMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLease();
+    }
+
+    private async Task LoadLease()
+    {
+        try
+        {
+            isLoading = true;
+            loadErrorMessage = null;
+
+            lease = await ApiClient.GetAsync<LeaseDto>($"/api/leases/{Id}");
+
+            if (lease == null)
+            {
+                loadErrorMessage = "Lease not found.";
+                return;
+            }
+
+            model = new UpdateLeaseDto
+            {
+                EndDate = lease.EndDate,
+                MonthlyRent = lease.MonthlyRent,
+                Status = lease.Status
+            };
+        }
+        catch (HttpRequestException)
+        {
+            loadErrorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            loadErrorMessage = $"An error occurred while loading lease: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (model == null) return;
+
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+
+            await ApiClient.PutAsync<UpdateLeaseDto, object>($"/api/leases/{Id}", model);
+            Navigation.NavigateTo($"/leases/details/{Id}");
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/leases/details/{Id}");
+    }
+}

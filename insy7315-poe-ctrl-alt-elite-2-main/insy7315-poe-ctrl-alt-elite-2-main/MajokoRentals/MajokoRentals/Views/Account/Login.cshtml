@@ -1,0 +1,171 @@
+@model MajokoRentals.Core.ViewModels.LoginViewModel
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-accent">Welcome Back</h2>
+                    <p class="text-muted">Sign in to your account</p>
+                </div>
+
+                <div id="errorMessage" class="alert alert-danger" style="display:none;"></div>
+
+                <form id="loginForm" asp-action="Login" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    <input type="hidden" asp-for="ReturnUrl" />
+                    <input type="hidden" id="firebaseIdToken" asp-for="FirebaseIdToken" />
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label">Email Address</label>
+                        <input asp-for="Email" id="emailInput" class="form-control form-control-lg" placeholder="Enter your email" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <input asp-for="Password" type="password" id="passwordInput" class="form-control form-control-lg" placeholder="Enter your password" />
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label">Remember me</label>
+                    </div>
+
+                    <button type="submit" id="loginButton" class="btn btn-primary btn-lg w-100 mb-3">
+                        <span id="loginButtonText"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In</span>
+                        <span id="loginSpinner" class="spinner-border spinner-border-sm me-2" style="display:none;"></span>
+                        <span id="loginLoadingText" style="display:none;">Signing in...</span>
+                    </button>
+
+                    <div class="text-center mt-3">
+                        <p class="text-muted">
+                            Don't have an account?
+                            <a asp-action="Register" class="text-accent fw-bold">Register here</a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center mt-3 text-muted">
+            <small>Demo Admin: admin@@majoko.co.za | Admin@123</small>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "@(Configuration["Firebase:ApiKey"])",
+            authDomain: "@(Configuration["Firebase:AuthDomain"])",
+            projectId: "@(Configuration["Firebase:ProjectId"])",
+            storageBucket: "@(Configuration["Firebase:StorageBucket"])",
+            messagingSenderId: "@(Configuration["Firebase:MessagingSenderId"])",
+            appId: "@(Configuration["Firebase:AppId"])"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // Handle login form submission
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const loginButton = document.getElementById('loginButton');
+            const loginButtonText = document.getElementById('loginButtonText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            const loginLoadingText = document.getElementById('loginLoadingText');
+
+            // Hide error message
+            errorDiv.style.display = 'none';
+
+            // Show loading state
+            loginButton.disabled = true;
+            loginButtonText.style.display = 'none';
+            loginSpinner.style.display = 'inline-block';
+            loginLoadingText.style.display = 'inline';
+
+            try {
+                // Sign in with Firebase
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+
+                // Get Firebase ID token
+                const idToken = await userCredential.user.getIdToken();
+
+                // Set token in hidden field
+                document.getElementById('firebaseIdToken').value = idToken;
+
+                // Submit the form to server
+                this.submit();
+            } catch (error) {
+                console.error('Firebase login error:', error);
+
+                // Show error message
+                errorDiv.textContent = getErrorMessage(error.code);
+                errorDiv.style.display = 'block';
+
+                // Reset button state
+                loginButton.disabled = false;
+                loginButtonText.style.display = 'inline';
+                loginSpinner.style.display = 'none';
+                loginLoadingText.style.display = 'none';
+            }
+        });
+
+        function getErrorMessage(errorCode) {
+            switch (errorCode) {
+                case 'auth/invalid-email':
+                    return 'Invalid email address.';
+                case 'auth/user-disabled':
+                    return 'This account has been disabled.';
+                case 'auth/user-not-found':
+                    return 'No account found with this email.';
+                case 'auth/wrong-password':
+                    return 'Incorrect password.';
+                case 'auth/invalid-credential':
+                    return 'Invalid email or password.';
+                case 'auth/too-many-requests':
+                    return 'Too many failed login attempts. Please try again later.';
+                default:
+                    return 'An error occurred during login. Please try again.';
+            }
+        }
+
+        // Password visibility toggle
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('passwordInput');
+            const toggleIcon = document.getElementById('togglePasswordIcon');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('bi-eye');
+                toggleIcon.classList.add('bi-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('bi-eye-slash');
+                toggleIcon.classList.add('bi-eye');
+            }
+        });
+    </script>
+}

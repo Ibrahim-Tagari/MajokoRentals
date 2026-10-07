@@ -1,0 +1,21 @@
+[Unit]
+Description=Majoko Rentals API Service
+After=network.target
+
+[Service]
+Type=notify
+# Change this to your actual path on the server
+WorkingDirectory=/home/yourusername/majoko-api
+# Change this to your actual path on the server
+ExecStart=/home/yourusername/majoko-api/MajokoRentals.API
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+# Change this to your cPanel username
+User=yourusername
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+Environment=ASPNETCORE_URLS=http://localhost:5275
+
+[Install]
+WantedBy=multi-user.target

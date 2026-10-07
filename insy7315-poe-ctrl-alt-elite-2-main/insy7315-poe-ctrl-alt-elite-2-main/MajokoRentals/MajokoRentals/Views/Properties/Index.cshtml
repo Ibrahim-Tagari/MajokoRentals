@@ -1,0 +1,96 @@
+@model IEnumerable<MajokoRentals.Core.ViewModels.PropertyListViewModel>
+
+@{
+    ViewData["Title"] = "Properties";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">
+        <i class="bi bi-building me-2"></i>Properties
+    </h2>
+    @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+    {
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Add Property
+        </a>
+    }
+</div>
+
+<!-- Search and Filter -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-6">
+                <input type="text" name="search" class="form-control" placeholder="Search by name, address, or city..." value="@ViewBag.Search" />
+            </div>
+            <div class="col-md-4">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    @foreach (PropertyStatus status in Enum.GetValues(typeof(PropertyStatus)))
+                    {
+                        <option value="@((int)status)" selected="@(ViewBag.Status == status)">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No properties found.
+        @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+        {
+            <a asp-action="Create">Add your first property</a>
+        }
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var property in Model)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    @if (!string.IsNullOrEmpty(property.MainImage))
+                    {
+                        <img src="@property.MainImage" class="card-img-top" alt="@property.Name" style="height: 200px; object-fit: cover;" />
+                    }
+                    else
+                    {
+                        <div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background-color: var(--tertiary-bg); border-bottom: 1px solid var(--border-color);">
+                            <i class="bi bi-house text-muted" style="font-size: 4rem;"></i>
+                        </div>
+                    }
+                    <div class="card-body">
+                        <h5 class="card-title">@property.Name</h5>
+                        <p class="text-muted mb-2">
+                            <i class="bi bi-geo-alt me-1"></i>@property.Address, @property.City
+                        </p>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>
+                                <i class="bi bi-door-closed me-1"></i>@property.Bedrooms Bed
+                            </span>
+                            <span>
+                                <i class="bi bi-droplet me-1"></i>@property.Bathrooms Bath
+                            </span>
+                            <span class="badge bg-@(property.Status == PropertyStatus.Available ? "success" : property.Status == PropertyStatus.Occupied ? "warning" : "secondary")">
+                                @property.Status
+                            </span>
+                        </div>
+                        <h4 class="text-primary mb-3">R @property.MonthlyRent.ToString("N2")/month</h4>
+                        <a asp-action="Details" asp-route-id="@property.Id" class="btn btn-outline-primary w-100">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,175 @@
+@model IEnumerable<MajokoRentals.Core.ViewModels.InvoiceListViewModel>
+
+@{
+    ViewData["Title"] = "Invoices";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">
+        <i class="bi bi-receipt me-2"></i>Invoices
+    </h2>
+    @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+    {
+        <a asp-action="GenerateInvoices" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Generate Invoices
+        </a>
+    }
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form asp-action="Invoices" method="get" class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    @foreach (PaymentStatus status in Enum.GetValues(typeof(PaymentStatus)))
+                    {
+                        <option value="@((int)status)" selected="@(ViewBag.Status == status)">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Filter</label>
+                <select name="overdue" class="form-select">
+                    <option value="">All Invoices</option>
+                    <option value="true" selected="@(ViewBag.Overdue == true)">Overdue Only</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+@{
+    var totalAmount = Model.Sum(i => i.Amount);
+    var totalPaid = Model.Sum(i => i.AmountPaid);
+    var totalOutstanding = Model.Sum(i => i.AmountDue);
+    var overdueCount = Model.Count(i => i.IsOverdue);
+    var overdueAmount = Model.Where(i => i.IsOverdue).Sum(i => i.AmountDue);
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Total Amount</h6>
+                <h3 class="text-primary">R @totalAmount.ToString("N2")</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Total Paid</h6>
+                <h3 class="text-success">R @totalPaid.ToString("N2")</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Outstanding</h6>
+                <h3 class="text-warning">R @totalOutstanding.ToString("N2")</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Overdue (@overdueCount)</h6>
+                <h3 class="text-danger">R @overdueAmount.ToString("N2")</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No invoices found.
+        @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+        {
+            <a asp-action="GenerateInvoices">Generate invoices for active leases</a>
+        }
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="color: var(--text-primary);">
+                    <thead style="background-color: var(--secondary-bg); color: var(--text-primary);">
+                        <tr>
+                            <th style="color: var(--text-primary);">Invoice #</th>
+                            <th style="color: var(--text-primary);">Property</th>
+                            <th style="color: var(--text-primary);">Tenant</th>
+                            <th style="color: var(--text-primary);">Invoice Date</th>
+                            <th style="color: var(--text-primary);">Due Date</th>
+                            <th style="color: var(--text-primary);">Amount</th>
+                            <th style="color: var(--text-primary);">Paid</th>
+                            <th style="color: var(--text-primary);">Outstanding</th>
+                            <th style="color: var(--text-primary);">Status</th>
+                            <th style="color: var(--text-primary);">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody style="background-color: var(--secondary-bg);">
+                        @foreach (var invoice in Model)
+                        {
+                            <tr class="@(invoice.IsOverdue ? "table-danger" : "")" style="background-color: var(--secondary-bg) !important;">
+                                <td style="color: var(--text-primary) !important;">
+                                    <strong>@invoice.InvoiceNumber</strong>
+                                    @if (invoice.IsOverdue)
+                                    {
+                                        <br /><span class="badge bg-danger">@invoice.DaysOverdue days overdue</span>
+                                    }
+                                </td>
+                                <td style="color: var(--text-primary) !important;">@invoice.PropertyName</td>
+                                <td style="color: var(--text-primary) !important;">@invoice.TenantName</td>
+                                <td style="color: var(--text-primary) !important;">@invoice.InvoiceDate.ToString("MMM dd, yyyy")</td>
+                                <td style="color: var(--text-primary) !important;">@invoice.DueDate.ToString("MMM dd, yyyy")</td>
+                                <td style="color: var(--text-primary) !important;">R @invoice.Amount.ToString("N2")</td>
+                                <td style="color: #4ade80 !important;">R @invoice.AmountPaid.ToString("N2")</td>
+                                <td style="color: var(--accent-gold) !important;">R @invoice.AmountDue.ToString("N2")</td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <span class="badge bg-@(invoice.Status == PaymentStatus.Paid ? "success" : invoice.Status == PaymentStatus.Overdue ? "danger" : invoice.Status == PaymentStatus.PartiallyPaid ? "warning" : "secondary")">
+                                        @invoice.Status
+                                    </span>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="InvoiceDetails" asp-route-id="@invoice.Id" class="btn btn-outline-primary" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if (invoice.Status != PaymentStatus.Paid)
+                                        {
+                                            @if (User.IsInRole("Tenant"))
+                                            {
+                                                <a asp-action="PaymentGateway" asp-route-id="@invoice.Id" class="btn btn-outline-success" title="Pay Now">
+                                                    <i class="bi bi-credit-card"></i>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a asp-action="RecordPayment" asp-route-id="@invoice.Id" class="btn btn-outline-success" title="Record Payment">
+                                                    <i class="bi bi-cash"></i>
+                                                </a>
+                                            }
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

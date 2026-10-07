@@ -1,0 +1,75 @@
+name: CodeQL (Security Scan)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    - cron: '0 3 * * 0'  # optional weekly run
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'csharp' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # we need .NET to build manually (autobuild couldn't handle your solution)
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            8.0.x
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      # 🔧 your solution references a Mobile project that is NOT in the repo,
+      # so we remove it here BEFORE we build, otherwise CodeQL build fails
+      - name: Clean missing Mobile project from solutions
+        run: |
+          MOBILE_CSProj="MajokoRentals/MajokoRentals.Mobile/MajokoRentals.Mobile.csproj"
+          if [ ! -f "$MOBILE_CSProj" ]; then
+            echo "Mobile project not found. Cleaning solutions ..."
+            if [ -f "MajokoRentals/MajokoRentals.sln" ]; then
+              dotnet sln MajokoRentals/MajokoRentals.sln remove "$MOBILE_CSProj" || true
+            fi
+            if [ -f "MajokoRentals.API/MajokoRentals.API.sln" ]; then
+              dotnet sln MajokoRentals.API/MajokoRentals.API.sln remove "$MOBILE_CSProj" || true
+            fi
+          else
+            echo "Mobile project exists, skipping cleanup."
+          fi
+
+      # 🔁 MANUAL BUILD (instead of CodeQL autobuild)
+      # Build BOTH solutions so CodeQL sees all your C# code
+      - name: Restore (MVC)
+        run: dotnet restore MajokoRentals/MajokoRentals.sln
+
+      - name: Build (MVC)
+        run: dotnet build MajokoRentals/MajokoRentals.sln --configuration Release --no-restore
+
+      - name: Restore (API)
+        run: dotnet restore MajokoRentals.API/MajokoRentals.API.sln
+
+      - name: Build (API)
+        run: dotnet build MajokoRentals.API/MajokoRentals.API.sln --configuration Release --no-restore
+
+      # now that we've built manually, let CodeQL analyze the compiled code
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

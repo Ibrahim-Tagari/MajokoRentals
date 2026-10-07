@@ -1,0 +1,330 @@
+@model MajokoRentals.Core.ViewModels.TenantDashboardViewModel
+
+@{
+    ViewData["Title"] = "My Dashboard";
+}
+
+<div class="mb-4">
+    <h2><i class="bi bi-house-door me-2"></i>My Dashboard</h2>
+    <p class="text-muted">Welcome to your tenant portal</p>
+</div>
+
+<!-- Lease Information -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-building me-2"></i>Current Lease
+                </h5>
+                <h4 class="mb-3">@Model.PropertyName</h4>
+                <p class="text-muted mb-3">
+                    <i class="bi bi-geo-alt me-1"></i>@Model.PropertyAddress
+                </p>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong>Lease Period:</strong><br />
+                        @Model.LeaseStartDate.ToString("MMM dd, yyyy") - @Model.LeaseEndDate.ToString("MMM dd, yyyy")
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Monthly Rent:</strong><br />
+                        <span class="text-primary fs-4">@($"R{Model.MonthlyRent:N2}")</span>
+                    </div>
+                </div>
+
+                @if (Model.DaysUntilExpiry <= 60 && Model.DaysUntilExpiry > 0)
+                {
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Lease Expiring Soon!</strong><br />
+                        Your lease will expire in @Model.DaysUntilExpiry days. Please contact the property manager if you wish to renew.
+                    </div>
+                }
+                else if (Model.DaysUntilExpiry > 60)
+                {
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Your lease expires in @Model.DaysUntilExpiry days.
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-danger mb-0">
+                        <i class="bi bi-x-circle me-2"></i>
+                        <strong>Lease Expired!</strong><br />
+                        Your lease expired @Math.Abs(Model.DaysUntilExpiry) days ago. Please contact the property manager immediately.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-2">Outstanding Balance</h6>
+                <h2 class="@(Model.OutstandingBalance > 0 ? "text-danger" : "text-success") mb-0">
+                    @($"R{Model.OutstandingBalance:N2}")
+                </h2>
+                @if (Model.UnpaidInvoices > 0)
+                {
+                    <small class="text-muted">@Model.UnpaidInvoices unpaid invoice(s)</small>
+                }
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-2">Paid This Year</h6>
+                <h2 class="text-success mb-0">@($"R{Model.TotalPaidThisYear:N2}")</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Announcements Panel -->
+@if (Model.RecentAnnouncements.Any())
+{
+    <div class="card mb-4 border-0 shadow">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--tertiary-bg); border-bottom: 2px solid var(--accent-gold);">
+            <h5 class="mb-0">
+                <i class="bi bi-megaphone-fill text-accent me-2"></i>
+                Important Announcements
+            </h5>
+            @{
+                var unreadCount = Model.RecentAnnouncements.Count(a => a.IsNew);
+            }
+            @if (unreadCount > 0)
+            {
+                <span class="badge bg-accent" style="color: var(--primary-bg);">@unreadCount New</span>
+            }
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                @foreach (var announcement in Model.RecentAnnouncements)
+                {
+                    var priorityColor = announcement.Priority switch
+                    {
+                        MajokoRentals.Core.Models.AnnouncementPriority.Urgent => "danger",
+                        MajokoRentals.Core.Models.AnnouncementPriority.Important => "warning",
+                        _ => "secondary"
+                    };
+
+                    var typeIcon = announcement.Type switch
+                    {
+                        MajokoRentals.Core.Models.AnnouncementType.Emergency => "bi-exclamation-triangle-fill",
+                        MajokoRentals.Core.Models.AnnouncementType.Maintenance => "bi-tools",
+                        MajokoRentals.Core.Models.AnnouncementType.Inspection => "bi-clipboard-check",
+                        MajokoRentals.Core.Models.AnnouncementType.Event => "bi-calendar-event",
+                        MajokoRentals.Core.Models.AnnouncementType.RentReminder => "bi-cash-coin",
+                        MajokoRentals.Core.Models.AnnouncementType.PolicyUpdate => "bi-file-earmark-text",
+                        _ => "bi-info-circle"
+                    };
+
+                    <a asp-controller="Announcements" asp-action="Details" asp-route-id="@announcement.Id"
+                       class="list-group-item list-group-item-action border-0"
+                       style="background-color: var(--secondary-bg); border-left: 4px solid var(--@priorityColor) !important;">
+                        <div class="d-flex w-100 align-items-center">
+                            <div class="notification-icon me-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                     style="width: 48px; height: 48px; background-color: var(--@priorityColor);">
+                                    <i class="@typeIcon" style="font-size: 1.5rem; color: white;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h6 class="mb-1 fw-bold" style="color: var(--text-primary);">
+                                        @announcement.Title
+                                        @if (announcement.IsNew)
+                                        {
+                                            <span class="badge bg-accent ms-2" style="font-size: 0.7rem;">NEW</span>
+                                        }
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>@announcement.CreatedDate.ToString("MMM dd")
+                                    </small>
+                                </div>
+                                <p class="mb-1" style="color: var(--text-secondary);">
+                                    @(announcement.Content.Length > 150 ? announcement.Content.Substring(0, 150) + "..." : announcement.Content)
+                                </p>
+                                <div class="d-flex gap-2 mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-tag me-1"></i>@announcement.Type
+                                    </small>
+                                    @if (announcement.Priority != MajokoRentals.Core.Models.AnnouncementPriority.Normal)
+                                    {
+                                        <small class="text-@priorityColor">
+                                            <i class="bi bi-exclamation-circle me-1"></i>@announcement.Priority
+                                        </small>
+                                    }
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <i class="bi bi-chevron-right" style="font-size: 1.2rem; color: var(--accent-gold);"></i>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Quick Actions</h5>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <a asp-controller="Payments" asp-action="MyInvoices" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-receipt d-block mb-2" style="font-size: 2rem;"></i>
+                            View Invoices
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a asp-controller="Maintenance" asp-action="Create" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-tools d-block mb-2" style="font-size: 2rem;"></i>
+                            Report Maintenance
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a asp-controller="Maintenance" asp-action="MyRequests" class="btn btn-outline-info w-100">
+                            <i class="bi bi-list-check d-block mb-2" style="font-size: 2rem;"></i>
+                            My Requests
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a asp-controller="Properties" asp-action="Details" asp-route-id="@Model.LeaseId" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-building d-block mb-2" style="font-size: 2rem;"></i>
+                            Property Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Invoices & Maintenance Requests -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Recent Invoices</h5>
+                    <a asp-controller="Payments" asp-action="MyInvoices" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+
+                @if (!Model.RecentInvoices.Any())
+                {
+                    <p class="text-muted text-center py-3">No invoices yet</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Due Date</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var invoice in Model.RecentInvoices)
+                                {
+                                    <tr class="@(invoice.IsOverdue ? "table-danger" : "")">
+                                        <td>
+                                            <a asp-controller="Payments" asp-action="InvoiceDetails" asp-route-id="@invoice.Id">
+                                                @invoice.InvoiceNumber
+                                            </a>
+                                        </td>
+                                        <td>@invoice.DueDate.ToString("MMM dd")</td>
+                                        <td>@($"R{invoice.Amount:N2}")</td>
+                                        <td>
+                                            <span class="badge bg-@(invoice.Status == PaymentStatus.Paid ? "success" : invoice.Status == PaymentStatus.PartiallyPaid ? "warning" : "danger")">
+                                                @invoice.Status
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Maintenance Requests</h5>
+                    <a asp-controller="Maintenance" asp-action="MyRequests" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <h6 class="text-muted">Open</h6>
+                        <h3 class="text-warning">@Model.OpenMaintenanceRequests</h3>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-muted">Resolved</h6>
+                        <h3 class="text-success">@Model.ResolvedMaintenanceRequests</h3>
+                    </div>
+                </div>
+
+                @if (!Model.RecentMaintenanceRequests.Any())
+                {
+                    <p class="text-muted text-center py-3">No maintenance requests yet</p>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var request in Model.RecentMaintenanceRequests)
+                        {
+                            <a asp-controller="Maintenance" asp-action="Details" asp-route-id="@request.Id" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">@request.Title</h6>
+                                        <small class="text-muted">@request.ReportedDate.ToString("MMM dd, yyyy")</small>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-@(request.Status == MaintenanceStatus.Resolved ? "success" : request.Status == MaintenanceStatus.InProgress ? "warning" : "secondary")">
+                                            @request.Status
+                                        </span>
+                                        @if (request.Priority == MaintenancePriority.Emergency || request.Priority == MaintenancePriority.High)
+                                        {
+                                            <span class="badge bg-@(request.Priority == MaintenancePriority.Emergency ? "danger" : "warning") ms-1">
+                                                @request.Priority
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.NextPaymentDue.HasValue && Model.OutstandingBalance > 0)
+{
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-@(Model.NextPaymentDue.Value < DateTime.UtcNow ? "danger" : "warning") shadow-sm">
+                <i class="bi bi-calendar-event me-2"></i>
+                <strong>Payment Reminder:</strong>
+                Your next payment of @($"R{Model.OutstandingBalance:N2}") is @(Model.NextPaymentDue.Value < DateTime.UtcNow ? "overdue" : $"due on {Model.NextPaymentDue.Value:MMM dd, yyyy}").
+                <a asp-controller="Payments" asp-action="MyInvoices" class="alert-link">View invoices</a>
+            </div>
+        </div>
+    </div>
+}

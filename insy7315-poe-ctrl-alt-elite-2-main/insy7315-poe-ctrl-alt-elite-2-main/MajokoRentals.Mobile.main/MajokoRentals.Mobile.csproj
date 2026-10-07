@@ -1,0 +1,172 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net9.0-windows10.0.19041.0</TargetFrameworks>
+        <!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
+        <!-- <TargetFrameworks>$(TargetFrameworks);net9.0-tizen</TargetFrameworks> -->
+
+        <!-- Note for MacCatalyst:
+            The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
+            When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
+            The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
+            either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
+        <!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+
+        <OutputType>Exe</OutputType>
+        <RootNamespace>MajokoRentals.Mobile.main</RootNamespace>
+        <UseMaui>true</UseMaui>
+        <SingleProject>true</SingleProject>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <EnableDefaultCssItems>false</EnableDefaultCssItems>
+        <Nullable>enable</Nullable>
+
+        <!-- Display name -->
+        <ApplicationTitle>MajokoRentals.Mobile</ApplicationTitle>
+
+        <!-- App Identifier - IMPORTANT: Cannot be changed after first Play Store upload -->
+        <ApplicationId>za.co.majoko.rentals</ApplicationId>
+
+        <!-- Versions -->
+        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <ApplicationVersion>1</ApplicationVersion>
+
+        <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
+        <WindowsPackageType>None</WindowsPackageType>
+
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+        <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
+    </PropertyGroup>
+
+    <!-- Android Release Configuration -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Release' AND '$(TargetFramework)' == 'net9.0-android'">
+        <!-- Enable code optimization -->
+        <AndroidEnableProguard>true</AndroidEnableProguard>
+        <AndroidLinkMode>Full</AndroidLinkMode>
+        <AndroidEnableMultiDex>true</AndroidEnableMultiDex>
+
+        <!-- Enable AOT compilation for better performance -->
+        <RunAOTCompilation>false</RunAOTCompilation> <!-- Set to true for production if needed -->
+
+        <!-- Packaging -->
+        <AndroidPackageFormat>aab</AndroidPackageFormat> <!-- Android App Bundle for Play Store -->
+
+        <!--
+        KEYSTORE CONFIGURATION:
+        Before building release, set these environment variables:
+        - ANDROID_KEYSTORE_PATH: Path to your .keystore file
+        - ANDROID_KEYSTORE_PASS: Keystore password
+        - ANDROID_KEY_ALIAS: Key alias name
+        - ANDROID_KEY_PASS: Key password
+
+        Example (PowerShell):
+        $env:ANDROID_KEYSTORE_PATH="C:\path\to\majoko-release.keystore"
+        $env:ANDROID_KEYSTORE_PASS="your_keystore_password"
+        $env:ANDROID_KEY_ALIAS="majoko-key"
+        $env:ANDROID_KEY_PASS="your_key_password"
+        -->
+        <AndroidKeyStore Condition="'$(ANDROID_KEYSTORE_PATH)' != ''">true</AndroidKeyStore>
+        <AndroidSigningKeyStore Condition="'$(ANDROID_KEYSTORE_PATH)' != ''">$(ANDROID_KEYSTORE_PATH)</AndroidSigningKeyStore>
+        <AndroidSigningKeyAlias Condition="'$(ANDROID_KEY_ALIAS)' != ''">$(ANDROID_KEY_ALIAS)</AndroidSigningKeyAlias>
+        <AndroidSigningKeyPass Condition="'$(ANDROID_KEY_PASS)' != ''">$(ANDROID_KEY_PASS)</AndroidSigningKeyPass>
+        <AndroidSigningStorePass Condition="'$(ANDROID_KEYSTORE_PASS)' != ''">$(ANDROID_KEYSTORE_PASS)</AndroidSigningStorePass>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- App Icon -->
+        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+
+        <!-- Splash Screen -->
+        <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+
+        <!-- Images -->
+        <MauiImage Include="Resources\Images\*" />
+        <MauiImage Update="Resources\Images\dotnet_bot.svg" BaseSize="168,208" />
+
+        <!-- Custom Fonts -->
+        <MauiFont Include="Resources\Fonts\*" />
+
+        <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+        <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FirebaseAuthentication.net" Version="4.1.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+          <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
+        <PackageReference Include="Plugin.GoogleClient" Version="2.0.0" />
+        <PackageReference Include="Plugin.LocalNotification" Version="11.1.4" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+    </ItemGroup>
+
+    <!-- Google Play Services Auth - Android only -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
+        <PackageReference Include="Xamarin.GooglePlayServices.Auth" Version="121.2.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="MajokoRentals.Core\MajokoRentals.Core.csproj" />
+    </ItemGroup>
+
+    <!-- Include appsettings.json as embedded resource -->
+    <ItemGroup>
+      <EmbeddedResource Include="appsettings.json" />
+    </ItemGroup>
+
+    <!-- Include resource files for localization -->
+    <ItemGroup>
+      <EmbeddedResource Update="Resources\AppResources.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>AppResources.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
+      <EmbeddedResource Update="Resources\AppResources_zu.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>AppResources_zu.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
+      <EmbeddedResource Update="Resources\AppResources_st.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>AppResources_st.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
+
+      <Compile Update="Resources\AppResources.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>AppResources.resx</DependentUpon>
+      </Compile>
+      <Compile Update="Resources\AppResources_zu.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>AppResources_zu.resx</DependentUpon>
+      </Compile>
+      <Compile Update="Resources\AppResources_st.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>AppResources_st.resx</DependentUpon>
+      </Compile>
+    </ItemGroup>
+
+    <!-- Include google-services.json for Android -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
+      <GoogleServicesJson Include="Platforms\Android\google-services.json" />
+    </ItemGroup>
+
+    <!-- Exclude transitive ASP.NET Core framework reference for mobile platforms -->
+    <Target Name="RemoveFrameworkReferencesForMobile" BeforeTargets="ResolveFrameworkReferences">
+      <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android' or '$(TargetFramework)' == 'net9.0-ios' or '$(TargetFramework)' == 'net9.0-maccatalyst'">
+        <FrameworkReference Remove="Microsoft.AspNetCore.App" />
+      </ItemGroup>
+    </Target>
+
+</Project>

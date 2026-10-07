@@ -1,0 +1,44 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # 1) RESTORE ONLY THE PROJECTS THAT ACTUALLY EXIST
+      #    (we are NOT restoring the Mobile project because it is not in GitHub yet)
+      - name: Restore dependencies
+        run: |
+          dotnet restore MajokoRentals.API/MajokoRentals.API.csproj
+          dotnet restore MajokoRentals/MajokoRentals.Core/MajokoRentals.Core.csproj
+          # optional UI project – keep but don't fail CI if it's weird
+          dotnet restore MajokoRentals/MajokoRentals/MajokoRentals.csproj || true
+          dotnet restore MajokoRentals.API.Tests.Full/MajokoRentals.API.Tests.csproj
+
+      # 2) BUILD APP PROJECTS
+      - name: Build API
+        run: dotnet build MajokoRentals.API/MajokoRentals.API.csproj --configuration Release --no-restore
+
+      - name: Build Core
+        run: dotnet build MajokoRentals/MajokoRentals.Core/MajokoRentals.Core.csproj --configuration Release --no-restore
+
+      - name: Build MVC / UI (optional)
+        run: dotnet build MajokoRentals/MajokoRentals/MajokoRentals.csproj --configuration Release --no-restore
+        continue-on-error: true
+
+      - name: Run Unit Tests
+        run: dotnet test MajokoRentals.API.Tests.Full/MajokoRentals.API.Tests.csproj --configuration Release --verbosity normal

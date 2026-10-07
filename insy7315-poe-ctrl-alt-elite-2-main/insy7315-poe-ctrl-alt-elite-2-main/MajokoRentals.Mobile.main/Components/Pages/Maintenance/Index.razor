@@ -1,0 +1,202 @@
+@page "/maintenance"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager,Caretaker,Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Maintenance Requests - Dr Majoko Projects</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">
+        <i class="bi bi-tools me-2"></i>Maintenance
+    </h2>
+    <AuthorizeView Roles="Admin,PropertyManager,Tenant">
+        <Authorized>
+            <a href="/maintenance/create" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>New Request
+            </a>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+<!-- Filter -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-8">
+                <select @bind="selectedStatus" @bind:event="onchange" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="0">Pending</option>
+                    <option value="1">In Progress</option>
+                    <option value="2">Resolved</option>
+                    <option value="3">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-4">
+                <button type="button" @onclick="LoadRequests" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading maintenance requests...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (requests == null || !filteredRequests.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No maintenance requests found.
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var request in filteredRequests)
+        {
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="flex-grow-1">
+                                <h5 class="card-title mb-1">@request.Title</h5>
+                                <p class="text-muted small mb-1">
+                                    <i class="bi bi-building me-1"></i>@request.PropertyName
+                                </p>
+                                @if (!string.IsNullOrEmpty(request.Location))
+                                {
+                                    <p class="text-muted small mb-0">
+                                        <i class="bi bi-geo-alt me-1"></i>@request.Location
+                                    </p>
+                                }
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-@GetStatusBadgeClass(request.Status) d-block mb-1">
+                                    @request.Status
+                                </span>
+                                <span class="badge bg-@GetPriorityBadgeClass(request.Priority) d-block">
+                                    @request.Priority
+                                </span>
+                            </div>
+                        </div>
+
+                        <p class="small mb-2">@request.Description</p>
+
+                        <div class="small text-muted mb-2">
+                            <i class="bi bi-tag me-1"></i>@request.Category
+                            <span class="ms-3">
+                                <i class="bi bi-calendar me-1"></i>@request.ReportedDate.ToString("dd MMM yyyy")
+                            </span>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(request.AssignedToName))
+                        {
+                            <p class="small text-muted mb-2">
+                                <i class="bi bi-person-check me-1"></i>Assigned to: @request.AssignedToName
+                            </p>
+                        }
+
+                        <div class="mt-3">
+                            <a href="/maintenance/details/@request.Id" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye me-1"></i>View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<MaintenanceRequestDto>? requests;
+    private List<MaintenanceRequestDto> filteredRequests => FilterRequests();
+    private string selectedStatus = "";
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+    }
+
+    private async Task LoadRequests()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            requests = await ApiClient.GetAsync<List<MaintenanceRequestDto>>("/api/maintenance");
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading maintenance requests: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<MaintenanceRequestDto> FilterRequests()
+    {
+        if (requests == null)
+            return new List<MaintenanceRequestDto>();
+
+        var filtered = requests.AsEnumerable();
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(selectedStatus) && int.TryParse(selectedStatus, out int statusValue))
+        {
+            filtered = filtered.Where(r => (int)r.Status == statusValue);
+        }
+
+        return filtered.OrderByDescending(r => r.ReportedDate).ToList();
+    }
+
+    private string GetStatusBadgeClass(MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Pending => "warning",
+            MaintenanceStatus.InProgress => "info",
+            MaintenanceStatus.Resolved => "success",
+            MaintenanceStatus.Cancelled => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    private string GetPriorityBadgeClass(MaintenancePriority priority)
+    {
+        return priority switch
+        {
+            MaintenancePriority.Low => "secondary",
+            MaintenancePriority.Medium => "info",
+            MaintenancePriority.High => "warning",
+            MaintenancePriority.Emergency => "danger",
+            _ => "secondary"
+        };
+    }
+}

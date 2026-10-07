@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Production: HTTPS only by default -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system certificates only in production -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Development: Allow cleartext for localhost/emulator ONLY -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain> <!-- Android emulator -->
+        <domain includeSubdomains="true">10.0.3.2</domain> <!-- Genymotion emulator -->
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+
+    <!--
+    IMPORTANT: For production, ensure your API uses HTTPS:
+    - Update ApiSettings:BaseUrl to use https://
+    - Remove localhost domains before Play Store submission if not needed
+    -->
+</network-security-config>

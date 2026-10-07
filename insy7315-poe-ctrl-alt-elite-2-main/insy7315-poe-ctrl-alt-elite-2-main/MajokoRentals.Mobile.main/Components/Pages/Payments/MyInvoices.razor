@@ -1,0 +1,237 @@
+@page "/invoices/my"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>My Invoices - Dr Majoko Projects</PageTitle>
+
+<div class="mb-4">
+    <h2><i class="bi bi-receipt me-2"></i>My Invoices</h2>
+    <p class="text-muted">View and manage your rental invoices</p>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading invoices...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (invoices != null)
+{
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Outstanding Balance</h6>
+                    <h2 class="@(totalOutstanding > 0 ? "text-danger" : "text-success") mb-0">
+                        R @totalOutstanding.ToString("N2")
+                    </h2>
+                    @if (unpaidCount > 0)
+                    {
+                        <small class="text-muted">@unpaidCount unpaid invoice(s)</small>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Paid This Year</h6>
+                    <h2 class="text-success mb-0">R @totalPaidThisYear.ToString("N2")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Overdue Invoices</h6>
+                    <h2 class="@(overdueCount > 0 ? "text-danger" : "text-muted") mb-0">@overdueCount</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="btn-group mb-3 w-100" role="group">
+        <button type="button" class="btn @(statusFilter == "All" ? "btn-primary" : "btn-outline-primary")" @onclick='() => statusFilter = "All"'>
+            All (@invoices.Count)
+        </button>
+        <button type="button" class="btn @(statusFilter == "Pending" ? "btn-warning" : "btn-outline-warning")" @onclick='() => statusFilter = "Pending"'>
+            Pending (@invoices.Count(i => i.Status == PaymentStatus.Pending))
+        </button>
+        <button type="button" class="btn @(statusFilter == "Overdue" ? "btn-danger" : "btn-outline-danger")" @onclick='() => statusFilter = "Overdue"'>
+            Overdue (@invoices.Count(i => i.Status == PaymentStatus.Overdue))
+        </button>
+        <button type="button" class="btn @(statusFilter == "Paid" ? "btn-success" : "btn-outline-success")" @onclick='() => statusFilter = "Paid"'>
+            Paid (@invoices.Count(i => i.Status == PaymentStatus.Paid))
+        </button>
+    </div>
+
+    @if (!filteredInvoices.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No invoices found for the selected filter.
+        </div>
+    }
+    else
+    {
+        <!-- Invoices List -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Due Date</th>
+                                <th>Amount</th>
+                                <th>Paid</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var invoice in filteredInvoices.OrderByDescending(i => i.DueDate))
+                            {
+                                <tr class="@(invoice.Status == PaymentStatus.Overdue ? "table-danger" : "")">
+                                    <td>
+                                        <strong>@invoice.InvoiceNumber</strong>
+                                        @if (!string.IsNullOrWhiteSpace(invoice.Description))
+                                        {
+                                            <br />
+                                            <small class="text-muted">@invoice.Description</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @invoice.DueDate.ToString("MMM dd, yyyy")
+                                        @if (invoice.Status == PaymentStatus.Overdue)
+                                        {
+                                            <br />
+                                            <small class="text-danger">@invoice.DaysOverdue days overdue</small>
+                                        }
+                                    </td>
+                                    <td>R @invoice.Amount.ToString("N2")</td>
+                                    <td class="text-success">R @invoice.AmountPaid.ToString("N2")</td>
+                                    <td class="@(invoice.AmountDue > 0 ? "text-danger" : "text-success")">
+                                        <strong>R @invoice.AmountDue.ToString("N2")</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@GetStatusBadgeClass(invoice.Status)">
+                                            @invoice.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="/invoices/details/@invoice.Id" class="btn btn-sm btn-outline-primary me-1">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                        @if (invoice.Status != PaymentStatus.Paid)
+                                        {
+                                            <a href="/payments/paynow/@invoice.Id" class="btn btn-sm btn-success">
+                                                <i class="bi bi-credit-card"></i> Pay Now
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        You don't have any invoices yet.
+    </div>
+}
+
+@code {
+    private List<InvoiceDto>? invoices;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string statusFilter = "All";
+
+    private double totalOutstanding => invoices?.Where(i => i.Status != PaymentStatus.Paid).Sum(i => i.AmountDue) ?? 0;
+    private double totalPaidThisYear => invoices?.Where(i => i.Status == PaymentStatus.Paid && i.PaidDate.HasValue && i.PaidDate.Value.Year == DateTime.UtcNow.Year).Sum(i => i.AmountPaid) ?? 0;
+    private int unpaidCount => invoices?.Count(i => i.Status == PaymentStatus.Pending || i.Status == PaymentStatus.PartiallyPaid) ?? 0;
+    private int overdueCount => invoices?.Count(i => i.Status == PaymentStatus.Overdue) ?? 0;
+
+    private List<InvoiceDto> filteredInvoices
+    {
+        get
+        {
+            if (invoices == null) return new List<InvoiceDto>();
+
+            return statusFilter switch
+            {
+                "Pending" => invoices.Where(i => i.Status == PaymentStatus.Pending).ToList(),
+                "Overdue" => invoices.Where(i => i.Status == PaymentStatus.Overdue).ToList(),
+                "Paid" => invoices.Where(i => i.Status == PaymentStatus.Paid).ToList(),
+                _ => invoices.ToList()
+            };
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInvoices();
+    }
+
+    private async Task LoadInvoices()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            invoices = await ApiClient.GetAsync<List<InvoiceDto>>("/api/invoices/my");
+
+            if (invoices == null)
+            {
+                invoices = new List<InvoiceDto>();
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading invoices: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetStatusBadgeClass(PaymentStatus status)
+    {
+        return status switch
+        {
+            PaymentStatus.Paid => "success",
+            PaymentStatus.PartiallyPaid => "info",
+            PaymentStatus.Pending => "warning",
+            PaymentStatus.Overdue => "danger",
+            _ => "secondary"
+        };
+    }
+}

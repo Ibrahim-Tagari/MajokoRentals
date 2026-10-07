@@ -1,0 +1,119 @@
+.page {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+.sidebar {
+    background-color: #151A2C;
+    background-image: linear-gradient(180deg, #151A2C 0%, #1E2538 100%);
+    border-right: 1px solid #2A3142;
+}
+
+.top-row {
+    background-color: #1E2538;
+    border-bottom: 2px solid #BAAA49;
+    justify-content: flex-end;
+    height: 3.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.navbar-toggler {
+    cursor: pointer;
+    width: 3rem;
+    height: 2.5rem;
+    padding: 0.25rem;
+    border: 1px solid #BAAA49;
+    border-radius: 4px;
+    background-color: rgba(186, 170, 73, 0.1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .navbar-toggler:hover {
+        background-color: rgba(186, 170, 73, 0.2);
+        border-color: #CAB959;
+    }
+
+    .navbar-toggler:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(186, 170, 73, 0.5);
+    }
+
+.navbar-toggler-icon {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28186, 170, 73, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100%;
+}
+
+.navbar-brand {
+    font-size: 1.3rem;
+    color: #BAAA49 !important;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+    .top-row ::deep a, .top-row ::deep .btn-link {
+        white-space: nowrap;
+        margin-left: 1.5rem;
+        text-decoration: none;
+    }
+
+        .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
+            text-decoration: underline;
+        }
+
+        .top-row ::deep a:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+@media (max-width: 640.98px) {
+    .top-row {
+        justify-content: space-between;
+    }
+
+        .top-row ::deep a, .top-row ::deep .btn-link {
+            margin-left: 0;
+        }
+}
+
+@media (min-width: 641px) {
+    .page {
+        flex-direction: row;
+    }
+
+    .sidebar {
+        width: 250px;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+    }
+
+    .top-row {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+        .top-row.auth ::deep a:first-child {
+            flex: 1;
+            text-align: right;
+            width: 0;
+        }
+
+    .top-row, article {
+        padding-left: 2rem !important;
+        padding-right: 1.5rem !important;
+    }
+}

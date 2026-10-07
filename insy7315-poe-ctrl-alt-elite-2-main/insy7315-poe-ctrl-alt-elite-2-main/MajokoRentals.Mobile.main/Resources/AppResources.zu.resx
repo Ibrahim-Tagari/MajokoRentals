@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" msdata:Ordinal="5" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Navigation -->
+  <data name="Nav_Home" xml:space="preserve">
+    <value>Ikhaya</value>
+  </data>
+  <data name="Nav_Properties" xml:space="preserve">
+    <value>Izakhiwo</value>
+  </data>
+  <data name="Nav_Dashboard" xml:space="preserve">
+    <value>Ibhodi Lokubuka</value>
+  </data>
+  <data name="Nav_Leases" xml:space="preserve">
+    <value>Izinkontileka Zokuqasha</value>
+  </data>
+  <data name="Nav_MyLease" xml:space="preserve">
+    <value>Inkontileka Yami</value>
+  </data>
+  <data name="Nav_Invoices" xml:space="preserve">
+    <value>Ama-invoyisi</value>
+  </data>
+  <data name="Nav_MyInvoices" xml:space="preserve">
+    <value>Ama-invoyisi Ami</value>
+  </data>
+  <data name="Nav_Maintenance" xml:space="preserve">
+    <value>Ukulungisa</value>
+  </data>
+  <data name="Nav_Applications" xml:space="preserve">
+    <value>Izicelo</value>
+  </data>
+  <data name="Nav_MyApplications" xml:space="preserve">
+    <value>Izicelo Zami</value>
+  </data>
+  <data name="Nav_ApplyNow" xml:space="preserve">
+    <value>Faka Isicelo Manje</value>
+  </data>
+  <data name="Nav_AssignedTasks" xml:space="preserve">
+    <value>Imisebenzi Ebekiwe</value>
+  </data>
+  <data name="Nav_Profile" xml:space="preserve">
+    <value>Iphrofayela</value>
+  </data>
+  <data name="Nav_Logout" xml:space="preserve">
+    <value>Phuma</value>
+  </data>
+  <data name="Nav_Login" xml:space="preserve">
+    <value>Ngena</value>
+  </data>
+  <data name="Nav_Register" xml:space="preserve">
+    <value>Bhalisa</value>
+  </data>
+
+  <!-- Common Buttons -->
+  <data name="Btn_Cancel" xml:space="preserve">
+    <value>Khansela</value>
+  </data>
+  <data name="Btn_Save" xml:space="preserve">
+    <value>Londoloza</value>
+  </data>
+  <data name="Btn_Submit" xml:space="preserve">
+    <value>Thumela</value>
+  </data>
+  <data name="Btn_Delete" xml:space="preserve">
+    <value>Susa</value>
+  </data>
+  <data name="Btn_Edit" xml:space="preserve">
+    <value>Hlela</value>
+  </data>
+  <data name="Btn_ViewDetails" xml:space="preserve">
+    <value>Buka Imininingwane</value>
+  </data>
+  <data name="Btn_Back" xml:space="preserve">
+    <value>Buyela Emuva</value>
+  </data>
+  <data name="Btn_Next" xml:space="preserve">
+    <value>Okulandelayo</value>
+  </data>
+  <data name="Btn_Close" xml:space="preserve">
+    <value>Vala</value>
+  </data>
+
+  <!-- Maintenance -->
+  <data name="Maint_Title" xml:space="preserve">
+    <value>Izicelo Zami Zokulungisa</value>
+  </data>
+  <data name="Maint_TrackRequests" xml:space="preserve">
+    <value>Landelela izicelo zakho zokulungisa izakhiwo</value>
+  </data>
+  <data name="Maint_NewRequest" xml:space="preserve">
+    <value>Isicelo Esisha</value>
+  </data>
+  <data name="Maint_TotalRequests" xml:space="preserve">
+    <value>Izicelo Zisesiphelweni</value>
+  </data>
+  <data name="Maint_Pending" xml:space="preserve">
+    <value>Kulindile</value>
+  </data>
+  <data name="Maint_InProgress" xml:space="preserve">
+    <value>Kuyaqhubeka</value>
+  </data>
+  <data name="Maint_Resolved" xml:space="preserve">
+    <value>Kuxazululiwe</value>
+  </data>
+  <data name="Maint_All" xml:space="preserve">
+    <value>Konke</value>
+  </data>
+  <data name="Maint_Offline" xml:space="preserve">
+    <value>Akukho Inthanethi</value>
+  </data>
+  <data name="Maint_Refreshing" xml:space="preserve">
+    <value>Kuvuselela...</value>
+  </data>
+  <data name="Maint_PendingSync" xml:space="preserve">
+    <value>kulindele ukuvumelanisa</value>
+  </data>
+  <data name="Maint_NoRequests" xml:space="preserve">
+    <value>Azikho izicelo zokulungisa ezitholakele kuhlunga olukhethiwe.</value>
+  </data>
+  <data name="Maint_Reported" xml:space="preserve">
+    <value>Kubikiwe</value>
+  </data>
+  <data name="Maint_Category" xml:space="preserve">
+    <value>Isigaba</value>
+  </data>
+  <data name="Maint_AssignedTo" xml:space="preserve">
+    <value>Kunikezwe</value>
+  </data>
+  <data name="Maint_CreateTitle" xml:space="preserve">
+    <value>Isicelo Esisha Sokulungisa</value>
+  </data>
+  <data name="Maint_OfflineMode" xml:space="preserve">
+    <value>Imodi Yokungabi Kwinthanethi</value>
+  </data>
+  <data name="Maint_OfflineMessage" xml:space="preserve">
+    <value>Isicelo sakho sizolondolozwa ngendlela yendawo futhi sizovumelaniswa ngokuzenzakalelayo uma usubuyele ku-inthanethi.</value>
+  </data>
+  <data name="Maint_Property" xml:space="preserve">
+    <value>Isakhiwo</value>
+  </data>
+  <data name="Maint_SelectProperty" xml:space="preserve">
+    <value>-- Khetha Isakhiwo --</value>
+  </data>
+  <data name="Maint_Title_Field" xml:space="preserve">
+    <value>Isihloko</value>
+  </data>
+  <data name="Maint_TitlePlaceholder" xml:space="preserve">
+    <value>Incazelo emfushane</value>
+  </data>
+  <data name="Maint_Description" xml:space="preserve">
+    <value>Incazelo</value>
+  </data>
+  <data name="Maint_DescriptionPlaceholder" xml:space="preserve">
+    <value>Incazelo egcwele yenkinga...</value>
+  </data>
+  <data name="Maint_Priority" xml:space="preserve">
+    <value>Ukubaluleka</value>
+  </data>
+  <data name="Maint_Location" xml:space="preserve">
+    <value>Indawo</value>
+  </data>
+  <data name="Maint_LocationPlaceholder" xml:space="preserve">
+    <value>isib., Ikhishi, Igumbi Lokulala 1</value>
+  </data>
+  <data name="Maint_SubmitRequest" xml:space="preserve">
+    <value>Thumela Isicelo</value>
+  </data>
+  <data name="Maint_Submitting" xml:space="preserve">
+    <value>Kuyathumelwa...</value>
+  </data>
+
+  <!-- Profile -->
+  <data name="Profile_Title" xml:space="preserve">
+    <value>Iphrofayela Yami</value>
+  </data>
+  <data name="Profile_PersonalInfo" xml:space="preserve">
+    <value>Ulwazi Lomuntu Siqu</value>
+  </data>
+  <data name="Profile_FirstName" xml:space="preserve">
+    <value>Igama Lokuqala</value>
+  </data>
+  <data name="Profile_LastName" xml:space="preserve">
+    <value>Isibongo</value>
+  </data>
+  <data name="Profile_Email" xml:space="preserve">
+    <value>I-imeyili</value>
+  </data>
+  <data name="Profile_Phone" xml:space="preserve">
+    <value>Inombolo Yocingo</value>
+  </data>
+  <data name="Profile_Role" xml:space="preserve">
+    <value>Iqhaza</value>
+  </data>
+  <data name="Profile_Preferences" xml:space="preserve">
+    <value>Okukuncanyelayo</value>
+  </data>
+  <data name="Profile_Language" xml:space="preserve">
+    <value>Ulimi</value>
+  </data>
+  <data name="Profile_Theme" xml:space="preserve">
+    <value>Itimu</value>
+  </data>
+  <data name="Profile_UpdateSuccess" xml:space="preserve">
+    <value>Iphrofayela ibuyekeziwe ngempumelelo!</value>
+  </data>
+  <data name="Profile_UpdateError" xml:space="preserve">
+    <value>Kwehlulekile ukubuyekeza iphrofayela. Sicela uzame futhi.</value>
+  </data>
+
+  <!-- Auth -->
+  <data name="Auth_Login" xml:space="preserve">
+    <value>Ngena</value>
+  </data>
+  <data name="Auth_Register" xml:space="preserve">
+    <value>Bhalisa</value>
+  </data>
+  <data name="Auth_Email" xml:space="preserve">
+    <value>I-imeyili</value>
+  </data>
+  <data name="Auth_Password" xml:space="preserve">
+    <value>Iphasiwedi</value>
+  </data>
+  <data name="Auth_ConfirmPassword" xml:space="preserve">
+    <value>Qinisekisa Iphasiwedi</value>
+  </data>
+  <data name="Auth_ForgotPassword" xml:space="preserve">
+    <value>Ukhohlwe Iphasiwedi?</value>
+  </data>
+  <data name="Auth_SignIn" xml:space="preserve">
+    <value>Ngena Ngemvume</value>
+  </data>
+  <data name="Auth_SignUp" xml:space="preserve">
+    <value>Bhalisa</value>
+  </data>
+
+  <!-- Common Messages -->
+  <data name="Common_Loading" xml:space="preserve">
+    <value>Kuyalayisha...</value>
+  </data>
+  <data name="Common_Error" xml:space="preserve">
+    <value>Iphutha</value>
+  </data>
+  <data name="Common_Success" xml:space="preserve">
+    <value>Impumelelo</value>
+  </data>
+  <data name="Common_Online" xml:space="preserve">
+    <value>Ku-inthanethi</value>
+  </data>
+  <data name="Common_Required" xml:space="preserve">
+    <value>*</value>
+  </data>
+
+  <!-- Languages -->
+  <data name="Lang_English" xml:space="preserve">
+    <value>IsiNgisi</value>
+  </data>
+  <data name="Lang_Zulu" xml:space="preserve">
+    <value>IsiZulu</value>
+  </data>
+  <data name="Lang_Sesotho" xml:space="preserve">
+    <value>SeSotho</value>
+  </data>
+
+  <!-- Priority Levels -->
+  <data name="Priority_Low" xml:space="preserve">
+    <value>Okuphansi</value>
+  </data>
+  <data name="Priority_Medium" xml:space="preserve">
+    <value>Maphakathi</value>
+  </data>
+  <data name="Priority_High" xml:space="preserve">
+    <value>Okuphezulu</value>
+  </data>
+  <data name="Priority_Emergency" xml:space="preserve">
+    <value>Okusheshayo</value>
+  </data>
+
+  <!-- Maintenance Categories -->
+  <data name="Category_Plumbing" xml:space="preserve">
+    <value>Amapayipi</value>
+  </data>
+  <data name="Category_Electrical" xml:space="preserve">
+    <value>Ugesi</value>
+  </data>
+  <data name="Category_Carpentry" xml:space="preserve">
+    <value>Ubumba</value>
+  </data>
+  <data name="Category_Painting" xml:space="preserve">
+    <value>Ukupenda</value>
+  </data>
+  <data name="Category_Cleaning" xml:space="preserve">
+    <value>Ukuhlanza</value>
+  </data>
+  <data name="Category_Appliance" xml:space="preserve">
+    <value>Amathuluzi</value>
+  </data>
+  <data name="Category_Security" xml:space="preserve">
+    <value>Ukuphepha</value>
+  </data>
+  <data name="Category_Other" xml:space="preserve">
+    <value>Okunye</value>
+  </data>
+</root>

@@ -1,0 +1,404 @@
+@page "/dashboard/tenant"
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>My Dashboard - Dr Majoko Projects</PageTitle>
+
+<div class="mb-4">
+    <h2><i class="bi bi-house-door me-2"></i>My Dashboard</h2>
+    <p class="text-muted">Welcome to your tenant portal</p>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading dashboard data...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (dashboardData != null)
+{
+    <!-- Lease Information -->
+    <div class="row mb-4">
+        <div class="col-md-8 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-building me-2"></i>Current Lease
+                    </h5>
+                    <h4 class="mb-3">@dashboardData.PropertyName</h4>
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-geo-alt me-1"></i>@dashboardData.PropertyAddress
+                    </p>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Lease Period:</strong><br />
+                            @dashboardData.LeaseStartDate.ToString("MMM dd, yyyy") - @dashboardData.LeaseEndDate.ToString("MMM dd, yyyy")
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Monthly Rent:</strong><br />
+                            <span class="text-primary fs-4">R @dashboardData.MonthlyRent.ToString("N2")</span>
+                        </div>
+                    </div>
+
+                    @if (dashboardData.DaysUntilExpiry <= 60 && dashboardData.DaysUntilExpiry > 0)
+                    {
+                        <div class="alert alert-warning mb-0">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Lease Expiring Soon!</strong><br />
+                            Your lease will expire in @dashboardData.DaysUntilExpiry days. Please contact the property manager if you wish to renew.
+                        </div>
+                    }
+                    else if (dashboardData.DaysUntilExpiry > 60)
+                    {
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Your lease expires in @dashboardData.DaysUntilExpiry days.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger mb-0">
+                            <i class="bi bi-x-circle me-2"></i>
+                            <strong>Lease Expired!</strong><br />
+                            Your lease expired @Math.Abs(dashboardData.DaysUntilExpiry) days ago. Please contact the property manager immediately.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Outstanding Balance</h6>
+                    <h2 class="@(dashboardData.OutstandingBalance > 0 ? "text-danger" : "text-success") mb-0">
+                        R @dashboardData.OutstandingBalance.ToString("N2")
+                    </h2>
+                    @if (dashboardData.UnpaidInvoices > 0)
+                    {
+                        <small class="text-muted">@dashboardData.UnpaidInvoices unpaid invoice(s)</small>
+                    }
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Paid This Year</h6>
+                    <h2 class="text-success mb-0">R @dashboardData.TotalPaidThisYear.ToString("N2")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Quick Actions</h5>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <a href="/invoices/my" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-receipt d-block mb-2" style="font-size: 2rem;"></i>
+                                View Invoices
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <a href="/maintenance/create" class="btn btn-outline-warning w-100">
+                                <i class="bi bi-tools d-block mb-2" style="font-size: 2rem;"></i>
+                                Report Maintenance
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <a href="/maintenance/my" class="btn btn-outline-info w-100">
+                                <i class="bi bi-list-check d-block mb-2" style="font-size: 2rem;"></i>
+                                My Requests
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <a href="/properties/details/@dashboardData.PropertyId" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-building d-block mb-2" style="font-size: 2rem;"></i>
+                                Property Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Invoices & Maintenance Requests -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Recent Invoices</h5>
+                        <a href="/invoices/my" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+
+                    @if (!dashboardData.RecentInvoices.Any())
+                    {
+                        <p class="text-muted text-center py-3">No invoices yet</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Due Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var invoice in dashboardData.RecentInvoices)
+                                    {
+                                        <tr class="@(invoice.IsOverdue ? "table-danger" : "")">
+                                            <td>
+                                                <a href="/invoices/details/@invoice.Id">
+                                                    @invoice.InvoiceNumber
+                                                </a>
+                                            </td>
+                                            <td>@invoice.DueDate.ToString("MMM dd")</td>
+                                            <td>R @invoice.Amount.ToString("N2")</td>
+                                            <td>
+                                                <span class="badge bg-@GetInvoiceStatusBadge(invoice.Status)">
+                                                    @invoice.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @if (invoice.Status != "Paid")
+                                                {
+                                                    <a href="/payments/paynow/@invoice.Id" class="btn btn-sm btn-success">
+                                                        <i class="bi bi-credit-card me-1"></i>Pay Now
+                                                    </a>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Maintenance Requests</h5>
+                        <a href="/maintenance/my" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <h6 class="text-muted">Open</h6>
+                            <h3 class="text-warning">@dashboardData.OpenMaintenanceRequests</h3>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-muted">Resolved</h6>
+                            <h3 class="text-success">@dashboardData.ResolvedMaintenanceRequests</h3>
+                        </div>
+                    </div>
+
+                    @if (!dashboardData.RecentMaintenanceRequests.Any())
+                    {
+                        <p class="text-muted text-center py-3">No maintenance requests yet</p>
+                    }
+                    else
+                    {
+                        <div class="list-group">
+                            @foreach (var request in dashboardData.RecentMaintenanceRequests)
+                            {
+                                <a href="/maintenance/details/@request.Id" class="list-group-item list-group-item-action">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">@request.Title</h6>
+                                            <small class="text-muted">@request.ReportedDate.ToString("MMM dd, yyyy")</small>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-@GetMaintenanceStatusBadge(request.Status)">
+                                                @request.Status
+                                            </span>
+                                            @if (request.Priority == MaintenancePriority.Emergency || request.Priority == MaintenancePriority.High)
+                                            {
+                                                <span class="badge bg-@(request.Priority == MaintenancePriority.Emergency ? "danger" : "warning") ms-1">
+                                                    @request.Priority
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (dashboardData.NextPaymentDue.HasValue && dashboardData.OutstandingBalance > 0)
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-@(dashboardData.NextPaymentDue.Value < DateTime.UtcNow ? "danger" : "warning") shadow-sm d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-calendar-event me-2"></i>
+                        <strong>Payment Reminder:</strong>
+                        Your next payment of R @dashboardData.OutstandingBalance.ToString("N2") is @(dashboardData.NextPaymentDue.Value < DateTime.UtcNow ? "overdue" : $"due on {dashboardData.NextPaymentDue.Value:MMM dd, yyyy}").
+                    </div>
+                    @if (dashboardData.RecentInvoices.Any(i => i.Status != "Paid"))
+                    {
+                        var nextInvoice = dashboardData.RecentInvoices.FirstOrDefault(i => i.Status != "Paid");
+                        if (nextInvoice != null)
+                        {
+                            <a href="/payments/paynow/@nextInvoice.Id" class="btn btn-success btn-sm">
+                                <i class="bi bi-credit-card me-1"></i>Pay Now
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private TenantDashboardViewModel? dashboardData;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            dashboardData = await ApiClient.GetAsync<TenantDashboardViewModel>("/api/dashboard/tenant");
+
+            if (dashboardData == null)
+            {
+                errorMessage = "Failed to load dashboard data.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading dashboard: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetInvoiceStatusBadge(string status)
+    {
+        return status switch
+        {
+            "Paid" => "success",
+            "PartiallyPaid" => "warning",
+            "Pending" => "warning",
+            "Overdue" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetMaintenanceStatusBadge(MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Resolved => "success",
+            MaintenanceStatus.InProgress => "warning",
+            _ => "secondary"
+        };
+    }
+
+    public class TenantDashboardViewModel
+    {
+        public string PropertyName { get; set; } = "";
+        public string PropertyAddress { get; set; } = "";
+        public string PropertyId { get; set; } = "";
+        public string LeaseId { get; set; } = "";
+        public DateTime LeaseStartDate { get; set; }
+        public DateTime LeaseEndDate { get; set; }
+        public double MonthlyRent { get; set; }
+        public int DaysUntilExpiry { get; set; }
+        public double OutstandingBalance { get; set; }
+        public int UnpaidInvoices { get; set; }
+        public double TotalPaidThisYear { get; set; }
+        public int OpenMaintenanceRequests { get; set; }
+        public int ResolvedMaintenanceRequests { get; set; }
+        public DateTime? NextPaymentDue { get; set; }
+        public List<InvoiceSummaryDto> RecentInvoices { get; set; } = new();
+        public List<MaintenanceRequestSummaryDto> RecentMaintenanceRequests { get; set; } = new();
+    }
+
+    public class InvoiceSummaryDto
+    {
+        public string Id { get; set; } = "";
+        public string InvoiceNumber { get; set; } = "";
+        public DateTime DueDate { get; set; }
+        public double Amount { get; set; }
+        public string Status { get; set; } = "";
+        public bool IsOverdue { get; set; }
+    }
+
+    public class MaintenanceRequestSummaryDto
+    {
+        public string Id { get; set; } = "";
+        public string Title { get; set; } = "";
+        public DateTime ReportedDate { get; set; }
+        public MaintenanceStatus Status { get; set; }
+        public MaintenancePriority Priority { get; set; }
+    }
+
+    public enum PaymentStatus
+    {
+        Unpaid = 0,
+        PartiallyPaid = 1,
+        Paid = 2,
+        Overdue = 3
+    }
+
+    public enum MaintenanceStatus
+    {
+        Pending = 0,
+        InProgress = 1,
+        Resolved = 2,
+        Cancelled = 3
+    }
+
+    public enum MaintenancePriority
+    {
+        Low = 0,
+        Medium = 1,
+        High = 2,
+        Emergency = 3
+    }
+}

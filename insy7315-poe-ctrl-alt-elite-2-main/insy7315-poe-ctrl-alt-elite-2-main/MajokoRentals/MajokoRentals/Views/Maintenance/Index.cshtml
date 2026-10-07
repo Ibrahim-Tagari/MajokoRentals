@@ -1,0 +1,320 @@
+@model IEnumerable<MajokoRentals.Core.ViewModels.MaintenanceRequestListViewModel>
+
+@{
+    ViewData["Title"] = "Maintenance Requests";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">
+        <i class="bi bi-tools me-2"></i>Maintenance Requests
+    </h2>
+    @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager") || User.IsInRole("Tenant"))
+    {
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>New Request
+        </a>
+    }
+</div>
+
+<!-- Notifications Panel -->
+@if (ViewBag.PendingChatRequests != null && (int)ViewBag.PendingChatRequests > 0)
+{
+    <div class="card mb-4 border-0 shadow">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--tertiary-bg); border-bottom: 2px solid var(--accent-gold);">
+            <h5 class="mb-0">
+                <i class="bi bi-bell-fill text-accent me-2"></i>
+                Notifications
+            </h5>
+            <span class="badge bg-accent" style="color: var(--primary-bg);">@ViewBag.PendingChatRequests New</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                <a asp-controller="Messaging" asp-action="PendingRequests" class="list-group-item list-group-item-action border-0" style="background-color: var(--secondary-bg); border-left: 4px solid var(--accent-gold) !important;">
+                    <div class="d-flex w-100 align-items-center">
+                        <div class="notification-icon me-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: var(--accent-gold);">
+                                <i class="bi bi-chat-dots" style="font-size: 1.5rem; color: var(--primary-bg);"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <h6 class="mb-1 fw-bold" style="color: var(--text-primary);">Pending Chat Requests</h6>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>Just now
+                                </small>
+                            </div>
+                            <p class="mb-1" style="color: var(--text-secondary);">
+                                You have <strong class="text-accent">@ViewBag.PendingChatRequests</strong> chat request@((int)ViewBag.PendingChatRequests > 1 ? "s" : "") waiting for approval
+                            </p>
+                            <small class="text-muted">
+                                <i class="bi bi-person-fill me-1"></i>From tenants
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="bi bi-chevron-right" style="font-size: 1.2rem; color: var(--accent-gold);"></i>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Announcements Panel -->
+@if (ViewBag.RecentAnnouncements != null && ((List<MajokoRentals.Core.DTOs.AnnouncementDto>)ViewBag.RecentAnnouncements).Any())
+{
+    var announcements = (List<MajokoRentals.Core.DTOs.AnnouncementDto>)ViewBag.RecentAnnouncements;
+    <div class="card mb-4 border-0 shadow">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--tertiary-bg); border-bottom: 2px solid var(--accent-gold);">
+            <h5 class="mb-0">
+                <i class="bi bi-megaphone-fill text-accent me-2"></i>
+                Announcements
+            </h5>
+            @{
+                var unreadCount = announcements.Count(a => a.IsNew);
+            }
+            @if (unreadCount > 0)
+            {
+                <span class="badge bg-accent" style="color: var(--primary-bg);">@unreadCount New</span>
+            }
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                @foreach (var announcement in announcements)
+                {
+                    var priorityColor = announcement.Priority switch
+                    {
+                        MajokoRentals.Core.Models.AnnouncementPriority.Urgent => "danger",
+                        MajokoRentals.Core.Models.AnnouncementPriority.Important => "warning",
+                        _ => "secondary"
+                    };
+
+                    var typeIcon = announcement.Type switch
+                    {
+                        MajokoRentals.Core.Models.AnnouncementType.Emergency => "bi-exclamation-triangle-fill",
+                        MajokoRentals.Core.Models.AnnouncementType.Maintenance => "bi-tools",
+                        MajokoRentals.Core.Models.AnnouncementType.Inspection => "bi-clipboard-check",
+                        MajokoRentals.Core.Models.AnnouncementType.Event => "bi-calendar-event",
+                        MajokoRentals.Core.Models.AnnouncementType.RentReminder => "bi-cash-coin",
+                        MajokoRentals.Core.Models.AnnouncementType.PolicyUpdate => "bi-file-earmark-text",
+                        _ => "bi-info-circle"
+                    };
+
+                    <a asp-controller="Announcements" asp-action="Details" asp-route-id="@announcement.Id"
+                       class="list-group-item list-group-item-action border-0"
+                       style="background-color: var(--secondary-bg); border-left: 4px solid var(--@priorityColor) !important;">
+                        <div class="d-flex w-100 align-items-center">
+                            <div class="notification-icon me-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                     style="width: 48px; height: 48px; background-color: var(--@priorityColor);">
+                                    <i class="@typeIcon" style="font-size: 1.5rem; color: white;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h6 class="mb-1 fw-bold" style="color: var(--text-primary);">
+                                        @announcement.Title
+                                        @if (announcement.IsNew)
+                                        {
+                                            <span class="badge bg-accent ms-2" style="font-size: 0.7rem;">NEW</span>
+                                        }
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>@announcement.CreatedDate.ToString("MMM dd")
+                                    </small>
+                                </div>
+                                <p class="mb-1" style="color: var(--text-secondary);">
+                                    @(announcement.Content.Length > 100 ? announcement.Content.Substring(0, 100) + "..." : announcement.Content)
+                                </p>
+                                <div class="d-flex gap-2 mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-tag me-1"></i>@announcement.Type
+                                    </small>
+                                    @if (announcement.Priority != MajokoRentals.Core.Models.AnnouncementPriority.Normal)
+                                    {
+                                        <small class="text-@priorityColor">
+                                            <i class="bi bi-exclamation-circle me-1"></i>@announcement.Priority
+                                        </small>
+                                    }
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <i class="bi bi-chevron-right" style="font-size: 1.2rem; color: var(--accent-gold);"></i>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Filters -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    @foreach (MaintenanceStatus status in Enum.GetValues(typeof(MaintenanceStatus)))
+                    {
+                        <option value="@((int)status)" selected="@(ViewBag.Status == status)">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Priority</label>
+                <select name="priority" class="form-select">
+                    <option value="">All Priorities</option>
+                    @foreach (MaintenancePriority priority in Enum.GetValues(typeof(MaintenancePriority)))
+                    {
+                        <option value="@((int)priority)" selected="@(ViewBag.Priority == priority)">@priority</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Property</label>
+                <select name="propertyId" class="form-select">
+                    <option value="">All Properties</option>
+                    @if (ViewBag.Properties != null)
+                    {
+                        @foreach (var property in (IEnumerable<SelectListItem>)ViewBag.Properties)
+                        {
+                            <option value="@property.Value" selected="@property.Selected">@property.Text</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+@{
+    var totalRequests = Model.Count();
+    var pendingRequests = Model.Count(m => m.Status == MaintenanceStatus.Pending);
+    var inProgressRequests = Model.Count(m => m.Status == MaintenanceStatus.InProgress);
+    var emergencyRequests = Model.Count(m => m.Priority == MaintenancePriority.Emergency && m.Status != MaintenanceStatus.Resolved);
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Total Requests</h6>
+                <h3 class="text-primary">@totalRequests</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Pending</h6>
+                <h3 class="text-warning">@pendingRequests</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">In Progress</h6>
+                <h3 class="text-info">@inProgressRequests</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted">Emergency</h6>
+                <h3 class="text-danger">@emergencyRequests</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No maintenance requests found.
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="color: var(--text-primary);">
+                    <thead style="background-color: var(--secondary-bg); color: var(--text-primary);">
+                        <tr>
+                            <th style="color: var(--text-primary);">Title</th>
+                            <th style="color: var(--text-primary);">Property</th>
+                            <th style="color: var(--text-primary);">Reported By</th>
+                            <th style="color: var(--text-primary);">Category</th>
+                            <th style="color: var(--text-primary);">Priority</th>
+                            <th style="color: var(--text-primary);">Status</th>
+                            <th style="color: var(--text-primary);">Assigned To</th>
+                            <th style="color: var(--text-primary);">Days Open</th>
+                            <th style="color: var(--text-primary);">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody style="background-color: var(--secondary-bg);">
+                        @foreach (var request in Model)
+                        {
+                            <tr class="@(request.Priority == MaintenancePriority.Emergency ? "table-danger" : "")" style="background-color: var(--secondary-bg) !important;">
+                                <td style="color: var(--text-primary) !important;">
+                                    <strong>@request.Title</strong><br />
+                                    <small class="text-muted">@request.ReportedDate.ToString("MMM dd, yyyy")</small>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">
+                                    @request.PropertyName<br />
+                                    <small class="text-muted">@request.PropertyAddress</small>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">@request.ReportedByName</td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <span class="badge bg-secondary">@request.Category</span>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <span class="badge bg-@(request.Priority == MaintenancePriority.Emergency ? "danger" : request.Priority == MaintenancePriority.High ? "warning" : "info")">
+                                        @request.Priority
+                                    </span>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <span class="badge bg-@(request.Status == MaintenanceStatus.Resolved ? "success" : request.Status == MaintenanceStatus.InProgress ? "warning" : "secondary")">
+                                        @request.Status
+                                    </span>
+                                </td>
+                                <td style="color: var(--text-primary) !important;">@(request.AssignedToName ?? "Unassigned")</td>
+                                <td style="color: var(--text-primary) !important;">@request.DaysOpen days</td>
+                                <td style="color: var(--text-primary) !important;">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Details" asp-route-id="@request.Id" class="btn btn-outline-primary" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if ((User.IsInRole("Admin") || User.IsInRole("PropertyManager")) && request.Status == MaintenanceStatus.Pending)
+                                        {
+                                            <a asp-action="Assign" asp-route-id="@request.Id" class="btn btn-outline-warning" title="Assign">
+                                                <i class="bi bi-person-plus"></i>
+                                            </a>
+                                        }
+                                        @if ((User.IsInRole("Admin") || User.IsInRole("PropertyManager") || User.IsInRole("Caretaker")) && request.Status == MaintenanceStatus.InProgress)
+                                        {
+                                            <a asp-action="Complete" asp-route-id="@request.Id" class="btn btn-outline-success" title="Complete">
+                                                <i class="bi bi-check-circle"></i>
+                                            </a>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

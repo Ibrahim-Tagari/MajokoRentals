@@ -1,0 +1,157 @@
+@page "/maintenance/details/{id}"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Maintenance Request Details - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </button>
+    <AuthorizeView Roles="Admin,PropertyManager">
+        <Authorized>
+            @if (request?.Status == MaintenanceStatus.Pending)
+            {
+                <button class="btn btn-primary" @onclick="ShowAssignDialog">
+                    <i class="bi bi-person-check me-1"></i>Assign
+                </button>
+            }
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Roles="Caretaker">
+        <Authorized>
+            @if (request?.Status == MaintenanceStatus.InProgress)
+            {
+                <button class="btn btn-success" @onclick="ShowCompleteDialog">
+                    <i class="bi bi-check-circle me-1"></i>Mark Complete
+                </button>
+            }
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary"></div>
+        <p class="mt-2 text-muted">Loading request...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (request != null)
+{
+    <div class="mb-3">
+        <span class="badge bg-@GetStatusBadgeClass(request.Status) fs-6 me-2">@request.Status</span>
+        <span class="badge bg-@GetPriorityBadgeClass(request.Priority) fs-6">@request.Priority</span>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h3 class="card-title">@request.Title</h3>
+            <p class="text-muted"><i class="bi bi-building me-1"></i>@request.PropertyName</p>
+            @if (!string.IsNullOrEmpty(request.Location))
+            {
+                <p class="text-muted"><i class="bi bi-geo-alt me-1"></i>@request.Location</p>
+            }
+            <p>@request.Description</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5>Details</h5>
+            <p><strong>Category:</strong> @request.Category</p>
+            <p><strong>Reported:</strong> @request.ReportedDate.ToString("dd MMM yyyy HH:mm")</p>
+            <p><strong>Reported By:</strong> @request.ReportedByName</p>
+            @if (!string.IsNullOrEmpty(request.AssignedToName))
+            {
+                <p><strong>Assigned To:</strong> @request.AssignedToName</p>
+            }
+            @if (request.EstimatedCost.HasValue)
+            {
+                <p><strong>Estimated Cost:</strong> R @request.EstimatedCost.Value.ToString("N2")</p>
+            }
+            @if (request.ActualCost.HasValue)
+            {
+                <p><strong>Actual Cost:</strong> R @request.ActualCost.Value.ToString("N2")</p>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(request.ResolutionNotes))
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5>Resolution Notes</h5>
+                <p>@request.ResolutionNotes</p>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    private MaintenanceRequestDto? request;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequest();
+    }
+
+    private async Task LoadRequest()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            request = await ApiClient.GetAsync<MaintenanceRequestDto>($"/api/maintenance/{Id}");
+            if (request == null) errorMessage = "Request not found.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/maintenance");
+
+    private string GetStatusBadgeClass(MaintenanceStatus status) => status switch
+    {
+        MaintenanceStatus.Pending => "warning",
+        MaintenanceStatus.InProgress => "info",
+        MaintenanceStatus.Resolved => "success",
+        MaintenanceStatus.Cancelled => "secondary",
+        _ => "secondary"
+    };
+
+    private string GetPriorityBadgeClass(MaintenancePriority priority) => priority switch
+    {
+        MaintenancePriority.Low => "secondary",
+        MaintenancePriority.Medium => "info",
+        MaintenancePriority.High => "warning",
+        MaintenancePriority.Emergency => "danger",
+        _ => "secondary"
+    };
+
+    private void ShowAssignDialog() { /* TODO: Implement assign dialog */ }
+    private void ShowCompleteDialog() { /* TODO: Implement complete dialog */ }
+}

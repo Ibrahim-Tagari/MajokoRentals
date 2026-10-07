@@ -1,0 +1,192 @@
+@page "/properties"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Properties - Dr Majoko Projects</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">
+        <i class="bi bi-building me-2"></i>Properties
+    </h2>
+    <AuthorizeView Roles="Admin,PropertyManager">
+        <Authorized>
+            <a href="/properties/create" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Add
+            </a>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+<!-- Search and Filter -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12">
+                <input type="text" @bind="searchText" @bind:event="oninput" class="form-control" placeholder="Search by name, address, or city..." />
+            </div>
+            <div class="col-8">
+                <select @bind="selectedStatus" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="0">Available</option>
+                    <option value="1">Occupied</option>
+                    <option value="2">Under Maintenance</option>
+                    <option value="3">Archived</option>
+                </select>
+            </div>
+            <div class="col-4">
+                <button type="button" @onclick="LoadProperties" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading properties...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (properties == null || !properties.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No properties found.
+        <AuthorizeView Roles="Admin,PropertyManager">
+            <Authorized>
+                <a href="/properties/create">Add your first property</a>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var property in filteredProperties)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    @if (!string.IsNullOrEmpty(property.MainImage))
+                    {
+                        <img src="@property.MainImage" class="card-img-top" alt="@property.Name" style="height: 200px; object-fit: cover;" />
+                    }
+                    else
+                    {
+                        <div class="card-img-top d-flex align-items-center justify-content-center" style="height: 200px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                            <i class="bi bi-house text-muted" style="font-size: 4rem;"></i>
+                        </div>
+                    }
+                    <div class="card-body">
+                        <h5 class="card-title">@property.Name</h5>
+                        <p class="text-muted mb-2">
+                            <i class="bi bi-geo-alt me-1"></i>@property.Address, @property.City
+                        </p>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>
+                                <i class="bi bi-door-closed me-1"></i>@property.Bedrooms Bed
+                            </span>
+                            <span>
+                                <i class="bi bi-droplet me-1"></i>@property.Bathrooms Bath
+                            </span>
+                            <span class="badge bg-@GetStatusBadgeClass(property.Status)">
+                                @property.Status
+                            </span>
+                        </div>
+                        <h4 class="text-primary mb-3">R @property.MonthlyRent.ToString("N2")/month</h4>
+                        <a href="/properties/details/@property.Id" class="btn btn-outline-primary w-100">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PropertyListDto>? properties;
+    private List<PropertyListDto> filteredProperties => FilterProperties();
+    private string searchText = "";
+    private string selectedStatus = "";
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProperties();
+    }
+
+    private async Task LoadProperties()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            // Call API to get properties
+            properties = await ApiClient.GetAsync<List<PropertyListDto>>("/api/properties");
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading properties: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<PropertyListDto> FilterProperties()
+    {
+        if (properties == null)
+            return new List<PropertyListDto>();
+
+        var filtered = properties.AsEnumerable();
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var search = searchText.ToLower();
+            filtered = filtered.Where(p =>
+                p.Name.ToLower().Contains(search) ||
+                p.Address.ToLower().Contains(search) ||
+                p.City.ToLower().Contains(search));
+        }
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(selectedStatus) && int.TryParse(selectedStatus, out int statusValue))
+        {
+            filtered = filtered.Where(p => (int)p.Status == statusValue);
+        }
+
+        return filtered.ToList();
+    }
+
+    private string GetStatusBadgeClass(PropertyStatus status)
+    {
+        return status switch
+        {
+            PropertyStatus.Available => "success",
+            PropertyStatus.Occupied => "warning",
+            PropertyStatus.UnderMaintenance => "info",
+            PropertyStatus.Archived => "secondary",
+            _ => "secondary"
+        };
+    }
+}

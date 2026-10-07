@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet build:*)",
+      "Bash(rm:*)",
+      "Bash(Select-String -Pattern \"warning ASP0019\" -NotMatch)",
+      "Bash(Select-String -Pattern \"Build succeeded|Error\")",
+      "Bash(dotnet run:*)",
+      "WebFetch(domain:majoko-api-eng2chegcab0fvdz.southafricanorth-01.azurewebsites.net)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(if exist \"bin\" rmdir /s /q bin)",
+      "Bash(if exist \"obj\" rmdir /s /q obj)",
+      "Bash(powershell -Command \"cd ''C:\\Users\\tsc72\\source\\repos\\MajokoRentals.API''; if (Test-Path ''bin'') { Remove-Item -Recurse -Force ''bin'' }; if (Test-Path ''obj'') { Remove-Item -Recurse -Force ''obj'' }; Write-Host ''Cleaned''\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

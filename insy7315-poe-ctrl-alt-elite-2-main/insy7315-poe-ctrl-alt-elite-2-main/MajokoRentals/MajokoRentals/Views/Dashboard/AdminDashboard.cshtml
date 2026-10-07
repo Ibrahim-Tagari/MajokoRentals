@@ -1,0 +1,493 @@
+@model MajokoRentals.Core.ViewModels.AdminDashboardViewModel
+
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="mb-4">
+    <h2><i class="bi bi-speedometer2 me-2"></i>Admin Dashboard</h2>
+    <p class="text-muted">Overview of your property management operations</p>
+</div>
+
+<!-- Notifications Panel -->
+@if (Model.PendingChatRequests > 0)
+{
+    <div class="card mb-4 border-0 shadow">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--tertiary-bg); border-bottom: 2px solid var(--accent-gold);">
+            <h5 class="mb-0">
+                <i class="bi bi-bell-fill text-accent me-2"></i>
+                Notifications
+            </h5>
+            <span class="badge bg-accent" style="color: var(--primary-bg);">@Model.PendingChatRequests New</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                <a asp-controller="Messaging" asp-action="PendingRequests" class="list-group-item list-group-item-action border-0" style="background-color: var(--secondary-bg); border-left: 4px solid var(--accent-gold) !important;">
+                    <div class="d-flex w-100 align-items-center">
+                        <div class="notification-icon me-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: var(--accent-gold);">
+                                <i class="bi bi-chat-dots" style="font-size: 1.5rem; color: var(--primary-bg);"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <h6 class="mb-1 fw-bold" style="color: var(--text-primary);">Pending Chat Requests</h6>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>Just now
+                                </small>
+                            </div>
+                            <p class="mb-1" style="color: var(--text-secondary);">
+                                You have <strong class="text-accent">@Model.PendingChatRequests</strong> chat request@(Model.PendingChatRequests > 1 ? "s" : "") waiting for approval
+                            </p>
+                            <small class="text-muted">
+                                <i class="bi bi-person-fill me-1"></i>From tenants
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="bi bi-chevron-right" style="font-size: 1.2rem; color: var(--accent-gold);"></i>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Announcements Panel -->
+@if (Model.RecentAnnouncements.Any())
+{
+    <div class="card mb-4 border-0 shadow">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--tertiary-bg); border-bottom: 2px solid var(--accent-gold);">
+            <h5 class="mb-0">
+                <i class="bi bi-megaphone-fill text-accent me-2"></i>
+                Announcements
+            </h5>
+            @{
+                var unreadCount = Model.RecentAnnouncements.Count(a => a.IsNew);
+            }
+            @if (unreadCount > 0)
+            {
+                <span class="badge bg-accent" style="color: var(--primary-bg);">@unreadCount New</span>
+            }
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                @foreach (var announcement in Model.RecentAnnouncements)
+                {
+                    var priorityColor = announcement.Priority switch
+                    {
+                        MajokoRentals.Core.Models.AnnouncementPriority.Urgent => "danger",
+                        MajokoRentals.Core.Models.AnnouncementPriority.Important => "warning",
+                        _ => "secondary"
+                    };
+
+                    var typeIcon = announcement.Type switch
+                    {
+                        MajokoRentals.Core.Models.AnnouncementType.Emergency => "bi-exclamation-triangle-fill",
+                        MajokoRentals.Core.Models.AnnouncementType.Maintenance => "bi-tools",
+                        MajokoRentals.Core.Models.AnnouncementType.Inspection => "bi-clipboard-check",
+                        MajokoRentals.Core.Models.AnnouncementType.Event => "bi-calendar-event",
+                        MajokoRentals.Core.Models.AnnouncementType.RentReminder => "bi-cash-coin",
+                        MajokoRentals.Core.Models.AnnouncementType.PolicyUpdate => "bi-file-earmark-text",
+                        _ => "bi-info-circle"
+                    };
+
+                    <a asp-controller="Announcements" asp-action="Details" asp-route-id="@announcement.Id"
+                       class="list-group-item list-group-item-action border-0 @(announcement.IsNew ? "bg-secondary" : "")"
+                       style="background-color: var(--secondary-bg); border-left: 4px solid var(--@priorityColor) !important;">
+                        <div class="d-flex w-100 align-items-center">
+                            <div class="notification-icon me-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                     style="width: 48px; height: 48px; background-color: var(--@priorityColor);">
+                                    <i class="@typeIcon" style="font-size: 1.5rem; color: white;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h6 class="mb-1 fw-bold" style="color: var(--text-primary);">
+                                        @announcement.Title
+                                        @if (announcement.IsNew)
+                                        {
+                                            <span class="badge bg-accent ms-2" style="font-size: 0.7rem;">NEW</span>
+                                        }
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>@announcement.CreatedDate.ToString("MMM dd")
+                                    </small>
+                                </div>
+                                <p class="mb-1" style="color: var(--text-secondary);">
+                                    @(announcement.Content.Length > 100 ? announcement.Content.Substring(0, 100) + "..." : announcement.Content)
+                                </p>
+                                <div class="d-flex gap-2 mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-tag me-1"></i>@announcement.Type
+                                    </small>
+                                    @if (announcement.Priority != MajokoRentals.Core.Models.AnnouncementPriority.Normal)
+                                    {
+                                        <small class="text-@priorityColor">
+                                            <i class="bi bi-exclamation-circle me-1"></i>@announcement.Priority
+                                        </small>
+                                    }
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <i class="bi bi-chevron-right" style="font-size: 1.2rem; color: var(--accent-gold);"></i>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        </div>
+        <div class="card-footer text-center" style="background-color: var(--tertiary-bg);">
+            <a asp-controller="Announcements" asp-action="Index" class="text-accent">
+                <i class="bi bi-list me-1"></i>View All Announcements
+            </a>
+        </div>
+    </div>
+}
+
+<!-- Key Metrics Row 1 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Properties</h6>
+                        <h3 class="mb-0">@Model.TotalProperties</h3>
+                        <small>@Model.AvailableProperties available</small>
+                    </div>
+                    <i class="bi bi-building" style="font-size: 3rem; opacity: 0.3;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Occupancy Rate</h6>
+                        <h3 class="mb-0">@Model.OccupancyRate.ToString("F1")%</h3>
+                        <small>@Model.OccupiedProperties / @Model.TotalProperties units</small>
+                    </div>
+                    <i class="bi bi-graph-up-arrow" style="font-size: 3rem; opacity: 0.3;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Monthly Rent</h6>
+                        <h3 class="mb-0">@($"R{Model.TotalMonthlyRent:N0}")</h3>
+                        <small>from @Model.ActiveLeases active leases</small>
+                    </div>
+                    <i class="bi bi-currency-dollar" style="font-size: 3rem; opacity: 0.3;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-0">Outstanding Rent</h6>
+                        <h3 class="mb-0">@($"R{Model.TotalOutstandingRent:N0}")</h3>
+                        <small>@Model.UnpaidInvoices unpaid invoices</small>
+                    </div>
+                    <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.3;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics Row 2 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Expiring Leases (60 days)</h6>
+                <h4 class="mb-0 text-danger">@Model.ExpiringLeases</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Collection Rate</h6>
+                <h4 class="mb-0 text-success">@Model.CollectionRate.ToString("F1")%</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Pending Applications</h6>
+                <h4 class="mb-0 text-warning">@Model.PendingApplications</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Pending Maintenance</h6>
+                <h4 class="mb-0 text-danger">@Model.PendingMaintenanceRequests</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Revenue Overview (Last 6 Months)</h5>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Property Status</h5>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="propertyStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Property Performance & Recent Activity -->
+<div class="row mb-4">
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Property Performance (Net Income)</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Property</th>
+                                <th>Monthly Rent</th>
+                                <th>Maintenance Costs</th>
+                                <th>Net Income (Annual)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var property in Model.PropertyPerformance.Take(5))
+                            {
+                                <tr>
+                                    <td>
+                                        <a asp-controller="Properties" asp-action="Details" asp-route-id="@property.PropertyId">
+                                            @property.PropertyName
+                                        </a>
+                                    </td>
+                                    <td>@($"R{property.MonthlyRent:N2}")</td>
+                                    <td class="text-danger">@($"R{property.MaintenanceCosts:N2}")</td>
+                                    <td class="fw-bold text-success">@($"R{property.NetIncome:N2}")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Recent Activity</h5>
+                <div class="activity-feed" style="max-height: 400px; overflow-y: auto;">
+                    @foreach (var activity in Model.RecentActivities)
+                    {
+                        <div class="activity-item mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-start">
+                                <i class="@activity.Icon text-@activity.Color me-3" style="font-size: 1.5rem;"></i>
+                                <div class="flex-grow-1">
+                                    <p class="mb-1">@activity.Description</p>
+                                    <small class="text-muted">@activity.Date.ToString("MMM dd, yyyy HH:mm")</small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Maintenance Statistics -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Maintenance Statistics</h5>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h6 class="text-muted">Pending</h6>
+                        <h3 class="text-danger">@Model.PendingMaintenanceRequests</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted">In Progress</h6>
+                        <h3 class="text-warning">@Model.InProgressMaintenanceRequests</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted">Resolved This Month</h6>
+                        <h3 class="text-success">@Model.ResolvedMaintenanceThisMonth</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted">Avg. Resolution Time</h6>
+                        <h3 class="text-info">@Model.AverageResolutionTime.ToString("F1") days</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        // Chart.js default dark theme configuration
+        Chart.defaults.color = '#FFFFFF';
+        Chart.defaults.borderColor = '#2A3142';
+        Chart.defaults.backgroundColor = '#1E2538';
+
+        // Revenue Chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        const revenueChart = new Chart(revenueCtx, {
+            type: 'bar',
+            data: {
+                labels: [@Html.Raw(string.Join(",", Model.MonthlyRevenue.Select(m => $"'{m.Month}'")))],
+                datasets: [
+                    {
+                        label: 'Expected Revenue',
+                        data: [@Html.Raw(string.Join(",", Model.MonthlyRevenue.Select(m => m.ExpectedRevenue)))],
+                        backgroundColor: 'rgba(186, 170, 73, 0.6)',
+                        borderColor: 'rgba(186, 170, 73, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Actual Revenue',
+                        data: [@Html.Raw(string.Join(",", Model.MonthlyRevenue.Select(m => m.ActualRevenue)))],
+                        backgroundColor: 'rgba(25, 135, 84, 0.6)',
+                        borderColor: 'rgba(25, 135, 84, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: '#FFFFFF'
+                        },
+                        grid: {
+                            color: '#2A3142'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#FFFFFF',
+                            callback: function(value) {
+                                return 'R' + value.toLocaleString();
+                            }
+                        },
+                        grid: {
+                            color: '#2A3142'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1E2538',
+                        titleColor: '#BAAA49',
+                        bodyColor: '#FFFFFF',
+                        borderColor: '#2A3142',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': R' + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Property Status Pie Chart
+        const propertyCtx = document.getElementById('propertyStatusChart').getContext('2d');
+        const propertyChart = new Chart(propertyCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Available', 'Occupied', 'Under Maintenance'],
+                datasets: [{
+                    data: [@Model.AvailableProperties, @Model.OccupiedProperties, @Model.UnderMaintenanceProperties],
+                    backgroundColor: [
+                        'rgba(13, 202, 240, 0.8)',
+                        'rgba(25, 135, 84, 0.8)',
+                        'rgba(186, 170, 73, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(13, 202, 240, 1)',
+                        'rgba(25, 135, 84, 1)',
+                        'rgba(186, 170, 73, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 10,
+                            boxWidth: 15,
+                            color: '#FFFFFF'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1E2538',
+                        titleColor: '#BAAA49',
+                        bodyColor: '#FFFFFF',
+                        borderColor: '#2A3142',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                return label + ': ' + value + ' properties';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+}

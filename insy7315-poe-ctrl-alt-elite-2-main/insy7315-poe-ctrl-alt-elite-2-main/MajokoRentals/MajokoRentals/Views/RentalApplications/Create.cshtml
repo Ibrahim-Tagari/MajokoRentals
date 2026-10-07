@@ -1,0 +1,234 @@
+@model MajokoRentals.Core.ViewModels.CreateRentalApplicationViewModel
+
+@{
+    ViewData["Title"] = "Apply for Rental";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-file-earmark-text me-2"></i>Rental Application Form
+                </h2>
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Before you begin:</strong><br />
+                    Please have the following documents ready to upload:
+                    <ul class="mb-0 mt-2">
+                        <li>Copy of ID or Passport</li>
+                        <li>Proof of income (payslip or bank statement)</li>
+                        <li>Recent bank statements (last 3 months)</li>
+                        <li>Reference letter (optional)</li>
+                    </ul>
+                </div>
+
+                <form asp-action="Create" method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <!-- Property Selection -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Property Selection</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label asp-for="PropertyId" class="form-label"></label>
+                                <select asp-for="PropertyId" class="form-select" asp-items="@ViewBag.Properties">
+                                    <option value="">-- Select Property --</option>
+                                </select>
+                                <span asp-validation-for="PropertyId" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Information -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Personal Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="FirstName" class="form-label"></label>
+                                    <input asp-for="FirstName" class="form-control" />
+                                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="LastName" class="form-label"></label>
+                                    <input asp-for="LastName" class="form-control" />
+                                    <span asp-validation-for="LastName" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Email" class="form-label"></label>
+                                    <input asp-for="Email" class="form-control" />
+                                    <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Phone" class="form-label"></label>
+                                    <input asp-for="Phone" class="form-control" />
+                                    <span asp-validation-for="Phone" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="IdNumber" class="form-label"></label>
+                                    <input asp-for="IdNumber" class="form-control" />
+                                    <span asp-validation-for="IdNumber" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="CurrentAddress" class="form-label"></label>
+                                    <input asp-for="CurrentAddress" class="form-control" />
+                                    <span asp-validation-for="CurrentAddress" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Employment Information -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Employment Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label asp-for="EmploymentStatus" class="form-label"></label>
+                                    <select asp-for="EmploymentStatus" class="form-select">
+                                        <option value="">-- Select --</option>
+                                        <option value="Employed Full-Time">Employed Full-Time</option>
+                                        <option value="Employed Part-Time">Employed Part-Time</option>
+                                        <option value="Self-Employed">Self-Employed</option>
+                                        <option value="Unemployed">Unemployed</option>
+                                        <option value="Student">Student</option>
+                                        <option value="Retired">Retired</option>
+                                    </select>
+                                    <span asp-validation-for="EmploymentStatus" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-4">
+                                    <label asp-for="EmployerName" class="form-label"></label>
+                                    <input asp-for="EmployerName" class="form-control" />
+                                    <span asp-validation-for="EmployerName" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-4">
+                                    <label asp-for="MonthlyIncome" class="form-label"></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R</span>
+                                        <input asp-for="MonthlyIncome" class="form-control" type="number" step="0.01" />
+                                    </div>
+                                    <span asp-validation-for="MonthlyIncome" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rental Details -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Rental Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="PreferredMoveInDate" class="form-label"></label>
+                                    <input asp-for="PreferredMoveInDate" class="form-control" type="date" />
+                                    <span asp-validation-for="PreferredMoveInDate" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="NumberOfOccupants" class="form-label"></label>
+                                    <input asp-for="NumberOfOccupants" class="form-control" type="number" min="1" />
+                                    <span asp-validation-for="NumberOfOccupants" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="form-check">
+                                        <input asp-for="HasPets" class="form-check-input" />
+                                        <label asp-for="HasPets" class="form-check-label"></label>
+                                    </div>
+                                </div>
+                                <div class="col-md-12" id="petDetailsContainer" style="display: none;">
+                                    <label asp-for="PetDetails" class="form-label"></label>
+                                    <textarea asp-for="PetDetails" class="form-control" rows="2"></textarea>
+                                    <span asp-validation-for="PetDetails" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documents -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Supporting Documents</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="IdDocument" class="form-label"></label>
+                                    <input asp-for="IdDocument" class="form-control" type="file" accept=".jpg,.jpeg,.png,.pdf" />
+                                    <small class="text-muted">PDF, JPG, PNG (max 5MB)</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="ProofOfIncome" class="form-label"></label>
+                                    <input asp-for="ProofOfIncome" class="form-control" type="file" accept=".jpg,.jpeg,.png,.pdf" />
+                                    <small class="text-muted">PDF, JPG, PNG (max 5MB)</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="BankStatement" class="form-label"></label>
+                                    <input asp-for="BankStatement" class="form-control" type="file" accept=".jpg,.jpeg,.png,.pdf" />
+                                    <small class="text-muted">PDF, JPG, PNG (max 5MB)</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="ReferenceLetter" class="form-label"></label>
+                                    <input asp-for="ReferenceLetter" class="form-control" type="file" accept=".jpg,.jpeg,.png,.pdf" />
+                                    <small class="text-muted">PDF, JPG, PNG (max 5MB) - Optional</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Additional Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label asp-for="AdditionalInformation" class="form-label"></label>
+                                <textarea asp-for="AdditionalInformation" class="form-control" rows="4" placeholder="Is there anything else you would like us to know?"></textarea>
+                                <span asp-validation-for="AdditionalInformation" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Declaration:</strong> I declare that the information provided in this application is true and accurate to the best of my knowledge.
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a asp-action="MyApplications" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send me-1"></i>Submit Application
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Show/hide pet details
+        document.getElementById('HasPets').addEventListener('change', function() {
+            var petDetailsContainer = document.getElementById('petDetailsContainer');
+            petDetailsContainer.style.display = this.checked ? 'block' : 'none';
+        });
+
+        // Check initial state
+        if (document.getElementById('HasPets').checked) {
+            document.getElementById('petDetailsContainer').style.display = 'block';
+        }
+    </script>
+}

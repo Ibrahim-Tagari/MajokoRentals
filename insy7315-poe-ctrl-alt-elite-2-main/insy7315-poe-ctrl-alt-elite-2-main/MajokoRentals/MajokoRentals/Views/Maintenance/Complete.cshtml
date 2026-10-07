@@ -1,0 +1,71 @@
+@model MajokoRentals.Core.ViewModels.CompleteMaintenanceRequestViewModel
+
+@{
+    ViewData["Title"] = "Complete Maintenance Request";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-check-circle me-2"></i>Complete Maintenance Request
+                </h2>
+
+                <div class="alert alert-success mb-4">
+                    <strong>Request:</strong> @Model.Title
+                </div>
+
+                <form asp-action="Complete" method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <input type="hidden" asp-for="RequestId" />
+                    <input type="hidden" asp-for="Title" />
+
+                    <div class="mb-4">
+                        <label asp-for="ResolutionNotes" class="form-label"></label>
+                        <textarea asp-for="ResolutionNotes" class="form-control" rows="5" placeholder="Describe what was done to resolve the issue..."></textarea>
+                        <span asp-validation-for="ResolutionNotes" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="ActualCost" class="form-label"></label>
+                        <div class="input-group">
+                            <span class="input-group-text">R</span>
+                            <input asp-for="ActualCost" class="form-control" type="number" step="0.01" />
+                        </div>
+                        <span asp-validation-for="ActualCost" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="CompletionImages" class="form-label"></label>
+                        <input asp-for="CompletionImages" class="form-control" type="file" multiple accept="image/*" />
+                        <small class="text-muted">Upload images showing the completed work (max 5MB each)</small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        The tenant who reported this issue will receive an email notification that it has been completed.
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a asp-action="Details" asp-route-id="@Model.RequestId" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back
+                        </a>
+                        <div class="d-flex gap-2">
+                            <a asp-action="Details" asp-route-id="@Model.RequestId" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle me-1"></i>Mark as Complete
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

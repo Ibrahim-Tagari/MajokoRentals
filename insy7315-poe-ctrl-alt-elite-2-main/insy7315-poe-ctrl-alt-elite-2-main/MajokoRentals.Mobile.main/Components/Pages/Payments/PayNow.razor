@@ -1,0 +1,353 @@
+@page "/payments/paynow/{invoiceId}"
+@using MajokoRentals.Core.Services
+@using MajokoRentals.Core.Models
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Secure Payment</PageTitle>
+
+<div class="container-fluid py-4">
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading payment details...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+        <button class="btn btn-primary" @onclick="GoBack">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </button>
+    }
+    else if (invoice != null)
+    {
+        <!-- Back Button -->
+        <div class="mb-4">
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+            </button>
+        </div>
+
+        <!-- Payment Summary Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-shield-lock me-2"></i>Secure Payment
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Invoice Number:</strong><br />
+                            <span class="text-muted">@invoice.InvoiceNumber</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong>Property:</strong><br />
+                            <span class="text-muted">@invoice.PropertyName</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <p class="mb-2">
+                            <strong>Due Date:</strong><br />
+                            <span class="text-muted">@invoice.DueDate.ToString("MMM dd, yyyy")</span>
+                        </p>
+                        <p class="mb-0">
+                            <strong>Amount to Pay:</strong><br />
+                            <span class="h4 text-success mb-0">R @invoice.AmountDue.ToString("N2")</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Gateway Card -->
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="bi bi-credit-card" style="font-size: 3rem; color: #D4AF37;"></i>
+                    <h4 class="mt-3">Enter Payment Details</h4>
+                    <p class="text-muted">This is an end-to-end secure and encrypted payment gateway</p>
+                </div>
+
+                <EditForm Model="@paymentModel" OnValidSubmit="@ProcessPayment">
+                    <DataAnnotationsValidator />
+
+                    <!-- Card Number -->
+                    <div class="mb-3">
+                        <label for="cardNumber" class="form-label">
+                            <i class="bi bi-credit-card me-1"></i>Card Number
+                        </label>
+                        <InputText @bind-Value="paymentModel.CardNumber"
+                                   class="form-control"
+                                   id="cardNumber"
+                                   placeholder="1234 5678 9012 3456"
+                                   maxlength="19"
+                                   @oninput="FormatCardNumber" />
+                        <small class="text-muted">Enter any 16-digit number (mock payment)</small>
+                        <ValidationMessage For="@(() => paymentModel.CardNumber)" />
+                    </div>
+
+                    <!-- Card Holder Name -->
+                    <div class="mb-3">
+                        <label for="cardHolder" class="form-label">
+                            <i class="bi bi-person me-1"></i>Cardholder Name
+                        </label>
+                        <InputText @bind-Value="paymentModel.CardHolderName"
+                                   class="form-control"
+                                   id="cardHolder"
+                                   placeholder="John Doe" />
+                        <ValidationMessage For="@(() => paymentModel.CardHolderName)" />
+                    </div>
+
+                    <!-- Expiry and CVV Row -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="expiryDate" class="form-label">
+                                <i class="bi bi-calendar me-1"></i>Expiry Date
+                            </label>
+                            <InputText @bind-Value="paymentModel.ExpiryDate"
+                                       class="form-control"
+                                       id="expiryDate"
+                                       placeholder="MM/YY"
+                                       maxlength="5"
+                                       @oninput="FormatExpiryDate" />
+                            <ValidationMessage For="@(() => paymentModel.ExpiryDate)" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="cvv" class="form-label">
+                                <i class="bi bi-lock me-1"></i>CVV
+                            </label>
+                            <InputText @bind-Value="paymentModel.CVV"
+                                       class="form-control"
+                                       id="cvv"
+                                       placeholder="123"
+                                       maxlength="3"
+                                       @oninput="FormatCVV" />
+                            <ValidationMessage For="@(() => paymentModel.CVV)" />
+                        </div>
+                    </div>
+
+                    <!-- Security Notice -->
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Mock Payment:</strong> This is a simulated payment gateway for demonstration purposes.
+                        Any card details can be used. Your payment will be recorded after processing.
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(processingError))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>@processingError
+                        </div>
+                    }
+
+                    <!-- Submit Button -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg" disabled="@isProcessing">
+                            <i class="bi bi-lock-fill me-2"></i>
+                            @if (isProcessing)
+                            {
+                                <span>
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    Processing Payment...
+                                </span>
+                            }
+                            else
+                            {
+                                <span>Pay R @invoice.AmountDue.ToString("N2")</span>
+                            }
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isProcessing">
+                            Cancel
+                        </button>
+                    </div>
+                </EditForm>
+
+                <!-- Trust Badges -->
+                <div class="text-center mt-4">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-check me-1"></i>Secured by 256-bit SSL encryption
+                    </small>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? InvoiceId { get; set; }
+
+    private InvoiceDto? invoice;
+    private PaymentModel paymentModel = new();
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private string? errorMessage;
+    private string? processingError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInvoice();
+    }
+
+    private async Task LoadInvoice()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            if (string.IsNullOrEmpty(InvoiceId))
+            {
+                errorMessage = "Invoice ID is required.";
+                return;
+            }
+
+            invoice = await ApiClient.GetAsync<InvoiceDto>($"/api/invoices/{InvoiceId}");
+
+            if (invoice == null)
+            {
+                errorMessage = "Invoice not found.";
+            }
+            else if (invoice.Status == PaymentStatus.Paid)
+            {
+                errorMessage = "This invoice has already been paid.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading invoice: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ProcessPayment()
+    {
+        try
+        {
+            isProcessing = true;
+            processingError = null;
+
+            // Simulate payment processing delay
+            await Task.Delay(2000);
+
+            // Generate mock transaction reference
+            var transactionRef = $"MOCK-{DateTime.Now:yyyyMMddHHmmss}-{new Random().Next(1000, 9999)}";
+
+            // Create payment record via API
+            var recordPaymentDto = new RecordPaymentDto
+            {
+                InvoiceId = invoice!.Id,
+                Amount = invoice.AmountDue,
+                PaymentDate = DateTime.Today,
+                PaymentMethod = "Card",
+                ReferenceNumber = transactionRef
+            };
+
+            var response = await ApiClient.PostAsync<RecordPaymentDto, object>("/api/invoices/payments", recordPaymentDto);
+
+            if (response != null)
+            {
+                // Success - navigate back to dashboard
+                Navigation.NavigateTo("/dashboard", forceLoad: true);
+            }
+            else
+            {
+                processingError = "Payment processing failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            processingError = $"Payment processing failed: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void FormatCardNumber(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            var value = e.Value.ToString()!.Replace(" ", "");
+            var formatted = string.Join(" ", System.Text.RegularExpressions.Regex.Matches(value, ".{1,4}").Select(m => m.Value));
+            paymentModel.CardNumber = formatted;
+        }
+    }
+
+    private void FormatExpiryDate(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            var value = e.Value.ToString()!.Replace("/", "");
+            if (value.Length >= 2)
+            {
+                value = value.Substring(0, 2) + "/" + value.Substring(2, Math.Min(2, value.Length - 2));
+            }
+            paymentModel.ExpiryDate = value;
+        }
+    }
+
+    private void FormatCVV(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            var value = new string(e.Value.ToString()!.Where(char.IsDigit).ToArray());
+            paymentModel.CVV = value;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/dashboard");
+    }
+
+    // View Models
+    public class InvoiceDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string InvoiceNumber { get; set; } = string.Empty;
+        public string PropertyName { get; set; } = string.Empty;
+        public DateTime DueDate { get; set; }
+        public double AmountDue { get; set; }
+        public PaymentStatus Status { get; set; }
+    }
+
+    public class PaymentModel
+    {
+        [Required(ErrorMessage = "Card number is required")]
+        [StringLength(19, MinimumLength = 19, ErrorMessage = "Card number must be 16 digits")]
+        public string CardNumber { get; set; } = "";
+
+        [Required(ErrorMessage = "Cardholder name is required")]
+        public string CardHolderName { get; set; } = "";
+
+        [Required(ErrorMessage = "Expiry date is required")]
+        [RegularExpression(@"^\d{2}/\d{2}$", ErrorMessage = "Expiry date must be in MM/YY format")]
+        public string ExpiryDate { get; set; } = "";
+
+        [Required(ErrorMessage = "CVV is required")]
+        [StringLength(3, MinimumLength = 3, ErrorMessage = "CVV must be 3 digits")]
+        public string CVV { get; set; } = "";
+    }
+
+    public class RecordPaymentDto
+    {
+        public string InvoiceId { get; set; } = string.Empty;
+        public double Amount { get; set; }
+        public DateTime PaymentDate { get; set; }
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string? ReferenceNumber { get; set; }
+    }
+}

@@ -1,0 +1,94 @@
+## .NET MAUI / Mobile App specific
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options directory
+.vs/
+.vscode/
+
+# CRITICAL: Firebase and Google Services credentials
+Firebase/serviceAccountKey.json
+**/serviceAccountKey.json
+google-services.json
+Platforms/Android/google-services.json
+GoogleService-Info.plist
+Platforms/iOS/GoogleService-Info.plist
+
+# CRITICAL: Configuration files with secrets
+appsettings.json
+appsettings.*.json
+!appsettings.Example.json
+
+# CRITICAL: Environment and secrets files
+.env
+.env.*
+*.env
+
+# CRITICAL: Any files containing credentials
+*credentials*.json
+*secret*.json
+*config*.json
+*.key
+*.pem
+*.pfx
+*.p12
+
+# Android specific
+*.apk
+*.aab
+*.dex
+*.class
+*.ap_
+
+# iOS specific
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# MAUI specific
+wwwroot/
+
+# Nuget
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Rider
+.idea/
+*.sln.iml
+
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# User-uploaded files (if storing locally)
+uploads/
+temp/
+
+# Backup files
+*.bak
+*.backup
+*~

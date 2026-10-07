@@ -1,0 +1,223 @@
+@model MajokoRentals.Models.ViewModels.PendingRequestsViewModel
+
+@{
+    ViewData["Title"] = "Pending Chat Requests";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-clock-history"></i> Pending Chat Requests</h2>
+        <a asp-action="MyChats" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to My Chats
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0">
+                <i class="bi bi-hourglass-split"></i> Requests Awaiting Your Approval
+                <span class="badge bg-dark">@Model.TotalCount</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            @if (Model.PendingRequests.Any())
+            {
+                <div class="row">
+                    @foreach (var request in Model.PendingRequests.OrderBy(r => r.Priority).ThenByDescending(r => r.RequestedAt))
+                    {
+                        <div class="col-md-12 mb-3">
+                            <div class="card @(request.Priority == MajokoRentals.Core.Models.SessionPriority.Urgent ? "border-danger" :
+                                               request.Priority == MajokoRentals.Core.Models.SessionPriority.High ? "border-warning" : "")">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <h5 class="mb-0">@request.Subject</h5>
+                                                @switch (request.Priority)
+                                                {
+                                                    case MajokoRentals.Core.Models.SessionPriority.Urgent:
+                                                        <span class="badge bg-danger ms-2">URGENT</span>
+                                                        break;
+                                                    case MajokoRentals.Core.Models.SessionPriority.High:
+                                                        <span class="badge bg-warning text-dark ms-2">HIGH PRIORITY</span>
+                                                        break;
+                                                }
+                                            </div>
+
+                                            <p class="mb-2">
+                                                <strong><i class="bi bi-person"></i> From:</strong> @request.InitiatorName
+                                            </p>
+
+                                            <p class="mb-2">
+                                                <strong><i class="bi bi-calendar"></i> Requested:</strong>
+                                                @request.RequestedAt.ToString("MMMM dd, yyyy 'at' HH:mm")
+                                                <span class="text-muted">
+                                                    (@((DateTime.UtcNow - request.RequestedAt).TotalHours < 1 ?
+                                                        $"{(int)(DateTime.UtcNow - request.RequestedAt).TotalMinutes} minutes ago" :
+                                                        $"{(int)(DateTime.UtcNow - request.RequestedAt).TotalHours} hours ago"))
+                                                </span>
+                                            </p>
+
+                                            @if (request.RelatedPropertyId.HasValue)
+                                            {
+                                                <p class="mb-2">
+                                                    <strong><i class="bi bi-building"></i> Property:</strong>
+                                                    @request.RelatedPropertyName
+                                                </p>
+                                            }
+
+                                            <p class="mb-2">
+                                                <strong><i class="bi bi-info-circle"></i> Type:</strong>
+                                                @request.SessionType.ToString().Replace("TenantTo", "Tenant → ")
+                                            </p>
+
+                                            @if (request.LastMessage != null)
+                                            {
+                                                <div class="alert alert-light mt-3">
+                                                    <strong>Initial Message:</strong>
+                                                    <p class="mb-0 mt-2">@request.LastMessage.Content</p>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-primary btn-approve" data-session-id="@request.Id">
+                                                    <i class="bi bi-check-circle"></i> Approve
+                                                </button>
+                                                <button class="btn btn-outline-secondary btn-reject" data-session-id="@request.Id"
+                                                        data-bs-toggle="modal" data-bs-target="#rejectModal-@request.Id">
+                                                    <i class="bi bi-x-circle"></i> Reject
+                                                </button>
+                                                <a asp-action="Conversation" asp-route-id="@request.Id"
+                                                   class="btn btn-outline-primary">
+                                                    <i class="bi bi-eye"></i> View Details
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reject Modal -->
+                        <div class="modal fade" id="rejectModal-@request.Id" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Reject Chat Request</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>Please provide a reason for rejecting this chat request:</p>
+                                        <textarea class="form-control rejection-reason" rows="3"
+                                                  placeholder="Example: I'm not available to handle this request at the moment..."></textarea>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="button" class="btn btn-secondary btn-confirm-reject"
+                                                data-session-id="@request.Id">
+                                            Confirm Rejection
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-check-circle display-1"></i>
+                    <p class="mt-3">No pending requests at the moment</p>
+                    <small>You're all caught up!</small>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Approve request
+            $('.btn-approve').click(function () {
+                const sessionId = $(this).data('session-id');
+                const button = $(this);
+
+                button.prop('disabled', true).html('<i class="bi bi-hourglass"></i> Processing...');
+
+                $.ajax({
+                    url: '@Url.Action("ApproveRequest", "Messaging")',
+                    type: 'POST',
+                    data: {
+                        sessionId: sessionId,
+                        approved: true,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert('Error: ' + response.message);
+                            button.prop('disabled', false).html('<i class="bi bi-check-circle"></i> Approve');
+                        }
+                    },
+                    error: function () {
+                        alert('An error occurred. Please try again.');
+                        button.prop('disabled', false).html('<i class="bi bi-check-circle"></i> Approve');
+                    }
+                });
+            });
+
+            // Confirm reject
+            $('.btn-confirm-reject').click(function () {
+                const sessionId = $(this).data('session-id');
+                const modal = $('#rejectModal-' + sessionId);
+                const reason = modal.find('.rejection-reason').val();
+
+                if (!reason || reason.trim().length < 10) {
+                    alert('Please provide a detailed reason (at least 10 characters)');
+                    return;
+                }
+
+                $(this).prop('disabled', true).html('<i class="bi bi-hourglass"></i> Processing...');
+
+                $.ajax({
+                    url: '@Url.Action("ApproveRequest", "Messaging")',
+                    type: 'POST',
+                    data: {
+                        sessionId: sessionId,
+                        approved: false,
+                        rejectionReason: reason,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    },
+                    error: function () {
+                        alert('An error occurred. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
+}
+
+@* Add CSRF token *@
+<form method="post" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>

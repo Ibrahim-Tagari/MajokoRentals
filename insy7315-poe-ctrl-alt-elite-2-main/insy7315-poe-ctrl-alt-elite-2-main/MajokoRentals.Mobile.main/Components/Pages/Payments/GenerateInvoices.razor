@@ -1,0 +1,203 @@
+@page "/invoices/generate"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Generate Invoices - Dr Majoko Projects</PageTitle>
+
+<div class="mb-4">
+    <h2><i class="bi bi-receipt-cutoff me-2"></i>Generate Invoices</h2>
+    <p class="text-muted">Automatically generate monthly rent invoices for active leases</p>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">
+        <i class="bi bi-check-circle me-2"></i>@successMessage
+    </div>
+}
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Invoice Generation Settings</h5>
+
+        <EditForm Model="@model" OnValidSubmit="HandleGenerate">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger mb-3" />
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Billing Month *</label>
+                    <InputDate @bind-Value="model.BillingMonth" class="form-control" />
+                    <small class="text-muted">Select the month you're billing for</small>
+                    <ValidationMessage For="@(() => model.BillingMonth)" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Invoice Date *</label>
+                    <InputDate @bind-Value="model.InvoiceDate" class="form-control" />
+                    <small class="text-muted">Date when invoices are issued</small>
+                    <ValidationMessage For="@(() => model.InvoiceDate)" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Due Date *</label>
+                    <InputDate @bind-Value="model.DueDate" class="form-control" />
+                    <small class="text-muted">Payment deadline for tenants</small>
+                    <ValidationMessage For="@(() => model.DueDate)" />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-check mt-4">
+                        <InputCheckbox @bind-Value="model.ActiveLeasesOnly" class="form-check-input" id="activeLeasesOnly" />
+                        <label class="form-check-label" for="activeLeasesOnly">
+                            Only generate for active leases
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Note:</strong> Invoices will only be generated for leases that don't already have an invoice for the selected billing month.
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg" disabled="@isGenerating">
+                    @if (isGenerating)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Generating Invoices...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-receipt-cutoff me-2"></i>
+                        <span>Generate Invoices</span>
+                    }
+                </button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isGenerating">
+                    <i class="bi bi-arrow-left me-2"></i>Cancel
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@if (generationResult != null)
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title mb-3">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>Generation Complete
+            </h5>
+            <div class="row text-center">
+                <div class="col-md-6">
+                    <h1 class="text-primary">@generationResult.Count</h1>
+                    <p class="text-muted">Invoices Generated</p>
+                </div>
+                <div class="col-md-6">
+                    <h1 class="text-success">@generationResult.Message</h1>
+                    <p class="text-muted">Status</p>
+                </div>
+            </div>
+            <div class="d-grid gap-2 mt-3">
+                <a href="/invoices" class="btn btn-primary">
+                    <i class="bi bi-receipt me-2"></i>View All Invoices
+                </a>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private GenerateInvoicesDto model = new()
+    {
+        BillingMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1),
+        InvoiceDate = DateTime.Today,
+        DueDate = DateTime.Today.AddDays(7),
+        ActiveLeasesOnly = true
+    };
+
+    private bool isGenerating = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private GenerationResultDto? generationResult;
+
+    private async Task HandleGenerate()
+    {
+        try
+        {
+            isGenerating = true;
+            errorMessage = null;
+            successMessage = null;
+            generationResult = null;
+
+            // Validate dates
+            if (model.DueDate < model.InvoiceDate)
+            {
+                errorMessage = "Due date must be after invoice date.";
+                return;
+            }
+
+            if (model.BillingMonth > DateTime.Today)
+            {
+                errorMessage = "Cannot generate invoices for future months.";
+                return;
+            }
+
+            var result = await ApiClient.PostAsync<GenerateInvoicesDto, GenerationResultDto>("/api/invoices/generate", model);
+
+            if (result != null)
+            {
+                generationResult = result;
+                successMessage = $"Successfully generated {result.Count} invoice(s)!";
+            }
+            else
+            {
+                errorMessage = "Failed to generate invoices. Please try again.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/invoices");
+    }
+
+    public class GenerateInvoicesDto
+    {
+        public DateTime BillingMonth { get; set; }
+        public DateTime InvoiceDate { get; set; }
+        public DateTime DueDate { get; set; }
+        public bool ActiveLeasesOnly { get; set; } = true;
+    }
+
+    public class GenerationResultDto
+    {
+        public int Count { get; set; }
+        public string Message { get; set; } = "";
+    }
+}

@@ -1,0 +1,121 @@
+@model MajokoRentals.Core.ViewModels.EditLeaseViewModel
+
+@{
+    ViewData["Title"] = "Edit Lease";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-pencil me-2"></i>Edit Lease
+                </h2>
+
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="ExistingLeaseDocumentUrl" />
+
+                    <!-- Property and Tenant Selection -->
+                    <h4 class="mb-3">Basic Information</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="PropertyId" class="form-label"></label>
+                            <select asp-for="PropertyId" class="form-select" asp-items="@ViewBag.Properties">
+                                <option value="">-- Select Property --</option>
+                            </select>
+                            <span asp-validation-for="PropertyId" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TenantId" class="form-label"></label>
+                            <select asp-for="TenantId" class="form-select" asp-items="@ViewBag.Tenants">
+                                <option value="">-- Select Tenant --</option>
+                            </select>
+                            <span asp-validation-for="TenantId" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Lease Period -->
+                    <h4 class="mb-3">Lease Period</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="StartDate" class="form-label"></label>
+                            <input asp-for="StartDate" class="form-control" type="date" />
+                            <span asp-validation-for="StartDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="EndDate" class="form-label"></label>
+                            <input asp-for="EndDate" class="form-control" type="date" />
+                            <span asp-validation-for="EndDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Financial Details -->
+                    <h4 class="mb-3">Financial Details</h4>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="MonthlyRent" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">R</span>
+                                <input asp-for="MonthlyRent" class="form-control" type="number" step="0.01" />
+                            </div>
+                            <span asp-validation-for="MonthlyRent" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="SecurityDeposit" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">R</span>
+                                <input asp-for="SecurityDeposit" class="form-control" type="number" step="0.01" />
+                            </div>
+                            <span asp-validation-for="SecurityDeposit" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Lease Status -->
+                    <h4 class="mb-3">Lease Status</h4>
+                    <div class="mb-4">
+                        <label asp-for="Status" class="form-label"></label>
+                        <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<LeaseStatus>()"></select>
+                        <span asp-validation-for="Status" class="text-danger"></span>
+                    </div>
+
+                    <!-- Lease Document -->
+                    <h4 class="mb-3">Lease Document</h4>
+                    <div class="mb-4">
+                        @if (!string.IsNullOrEmpty(Model.ExistingLeaseDocumentUrl))
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-file-pdf me-2"></i>
+                                <strong>Current Document:</strong>
+                                <a href="@Model.ExistingLeaseDocumentUrl" target="_blank">View Current Document</a>
+                            </div>
+                        }
+                        <label asp-for="NewLeaseDocument" class="form-label"></label>
+                        <input asp-for="NewLeaseDocument" class="form-control" type="file" accept=".pdf,.doc,.docx" />
+                        <small class="text-muted">Upload a new document to replace the existing one (PDF, DOC, DOCX - max 5MB)</small>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back
+                        </a>
+                        <div class="d-flex gap-2">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>Update Lease
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

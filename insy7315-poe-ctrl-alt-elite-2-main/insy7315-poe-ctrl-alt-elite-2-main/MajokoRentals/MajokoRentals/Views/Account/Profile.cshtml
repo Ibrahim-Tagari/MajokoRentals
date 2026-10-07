@@ -1,0 +1,160 @@
+@model MajokoRentals.Core.ViewModels.ProfileViewModel
+
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-person-circle me-2"></i>My Profile
+                </h2>
+
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                <form asp-action="Profile" method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <input type="hidden" asp-for="Uid" />
+                    <input type="hidden" asp-for="Email" />
+                    <input type="hidden" asp-for="Role" />
+                    <input type="hidden" asp-for="ProfileImageUrl" />
+                    <input type="hidden" asp-for="CreatedAt" />
+
+                    <!-- Profile Image Section -->
+                    <div class="text-center mb-4">
+                        @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+                        {
+                            <img src="@Model.ProfileImageUrl" alt="Profile Image" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px; font-size: 3rem;">
+                                @Model.FirstName.FirstOrDefault()@Model.LastName.FirstOrDefault()
+                            </div>
+                        }
+                        <div>
+                            <label for="NewProfileImage" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-camera me-1"></i>Change Photo
+                            </label>
+                            <input type="file" asp-for="NewProfileImage" id="NewProfileImage" class="d-none" accept="image/*" />
+                        </div>
+                    </div>
+
+                    <!-- Account Information (Read-Only) -->
+                    <div class="card mb-4" style="background-color: var(--tertiary-bg); border: 1px solid var(--border-color);">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3 text-accent">Account Information</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <strong>Email:</strong><br />
+                                    <span class="text-muted">@Model.Email</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Role:</strong><br />
+                                    <span class="badge bg-primary">@Model.Role</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Member Since:</strong><br />
+                                    <span class="text-muted">@Model.CreatedAt.ToString("MMMM dd, yyyy")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Information (Editable) -->
+                    <h5 class="mb-3">Personal Information</h5>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="FirstName" class="form-label"></label>
+                            <input asp-for="FirstName" class="form-control" />
+                            <span asp-validation-for="FirstName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="LastName" class="form-label"></label>
+                            <input asp-for="LastName" class="form-control" />
+                            <span asp-validation-for="LastName" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="PhoneNumber" class="form-label"></label>
+                        <input asp-for="PhoneNumber" class="form-control" placeholder="+27 123 456 789" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back
+                        </a>
+                        <div class="d-flex gap-2">
+                            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Additional Security Section -->
+        <div class="card shadow mt-4">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-shield-lock me-2"></i>Security
+                </h5>
+                <p class="text-muted mb-3">Manage your account security settings</p>
+                <div class="d-grid gap-2">
+                    <a href="#" class="btn btn-outline-warning" onclick="alert('Password reset functionality coming soon!')">
+                        <i class="bi bi-key me-1"></i>Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Preview image before upload
+        document.getElementById('NewProfileImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.querySelector('img[alt="Profile Image"]');
+                    const placeholder = document.querySelector('.rounded-circle.bg-primary');
+
+                    if (img) {
+                        img.src = e.target.result;
+                    } else if (placeholder) {
+                        placeholder.outerHTML = '<img src="' + e.target.result + '" alt="Profile Image" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;" />';
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+}

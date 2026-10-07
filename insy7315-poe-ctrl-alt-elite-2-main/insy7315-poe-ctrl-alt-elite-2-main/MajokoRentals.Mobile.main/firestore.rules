@@ -1,0 +1,200 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    // Check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if user has specific role
+    function hasRole(role) {
+      return isSignedIn() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    // Check if user is admin or property manager
+    function isAdminOrManager() {
+      return hasRole('Admin') || hasRole('PropertyManager');
+    }
+
+    // Check if user owns the document
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ========================================
+    // USER PROFILES
+    // ========================================
+    match /users/{userId} {
+      // Users can read their own profile
+      // Admins and Property Managers can read all profiles
+      allow read: if isOwner(userId) || isAdminOrManager();
+
+      // Users can update their own profile (limited fields)
+      allow update: if isOwner(userId) &&
+                       // Prevent users from changing their role
+                       request.resource.data.role == resource.data.role;
+
+      // Only admins can create users and set roles
+      allow create: if isAdminOrManager();
+
+      // Only admins can delete users
+      allow delete: if hasRole('Admin');
+    }
+
+    // ========================================
+    // PROPERTIES
+    // ========================================
+    match /properties/{propertyId} {
+      // Anyone can read properties (public listings)
+      allow read: if true;
+
+      // Only admins and property managers can create/update/delete
+      allow write: if isAdminOrManager();
+    }
+
+    // ========================================
+    // RENTAL APPLICATIONS
+    // ========================================
+    match /applications/{applicationId} {
+      // Users can read their own applications
+      // Admins/Managers can read all applications
+      allow read: if isSignedIn() &&
+                     (isOwner(resource.data.userId) || isAdminOrManager());
+
+      // Users can create applications for themselves
+      allow create: if isSignedIn() &&
+                       request.resource.data.userId == request.auth.uid;
+
+      // Only admins/managers can update or delete applications
+      allow update, delete: if isAdminOrManager();
+    }
+
+    // ========================================
+    // LEASES
+    // ========================================
+    match /leases/{leaseId} {
+      // Tenants can read their own leases
+      // Admins/Managers can read all leases
+      allow read: if isSignedIn() &&
+                     (isOwner(resource.data.tenantId) || isAdminOrManager());
+
+      // Only admins/managers can create/update/delete leases
+      allow write: if isAdminOrManager();
+    }
+
+    // ========================================
+    // INVOICES
+    // ========================================
+    match /invoices/{invoiceId} {
+      // Tenants can read their own invoices
+      // Admins/Managers can read all invoices
+      allow read: if isSignedIn() &&
+                     (isOwner(resource.data.tenantId) || isAdminOrManager());
+
+      // Only admins/managers can create invoices
+      allow create: if isAdminOrManager();
+
+      // Tenants can update payment proof
+      // Admins/Managers can update any field
+      allow update: if (isSignedIn() && isOwner(resource.data.tenantId) &&
+                        // Only allow updating payment-related fields
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProof', 'paymentDate', 'status'])) ||
+                       isAdminOrManager();
+
+      // Only admins can delete invoices
+      allow delete: if hasRole('Admin');
+    }
+
+    // ========================================
+    // MAINTENANCE REQUESTS
+    // ========================================
+    match /maintenance/{requestId} {
+      // Tenants can read their own requests
+      // Caretakers can read assigned requests
+      // Admins/Managers can read all requests
+      allow read: if isSignedIn() &&
+                     (isOwner(resource.data.tenantId) ||
+                      isOwner(resource.data.assignedTo) ||
+                      isAdminOrManager() ||
+                      hasRole('Caretaker'));
+
+      // Tenants can create maintenance requests
+      allow create: if isSignedIn() &&
+                       request.resource.data.tenantId == request.auth.uid;
+
+      // Caretakers can update status of assigned requests
+      // Admins/Managers can update any field
+      allow update: if (isSignedIn() && hasRole('Caretaker') &&
+                        isOwner(resource.data.assignedTo) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'notes', 'completedDate'])) ||
+                       isAdminOrManager();
+
+      // Only admins can delete maintenance requests
+      allow delete: if hasRole('Admin');
+    }
+
+    // ========================================
+    // MESSAGES / CHAT
+    // ========================================
+    match /messages/{messageId} {
+      // Users can read messages they sent or received
+      // Admins/Managers can read all messages
+      allow read: if isSignedIn() &&
+                     (isOwner(resource.data.senderId) ||
+                      isOwner(resource.data.receiverId) ||
+                      isAdminOrManager());
+
+      // Users can send messages
+      allow create: if isSignedIn() &&
+                       request.resource.data.senderId == request.auth.uid;
+
+      // Messages cannot be updated or deleted (immutable)
+      allow update, delete: if false;
+    }
+
+    // ========================================
+    // ANNOUNCEMENTS
+    // ========================================
+    match /announcements/{announcementId} {
+      // Anyone authenticated can read announcements
+      allow read: if isSignedIn();
+
+      // Only admins/managers can create/update/delete announcements
+      allow write: if isAdminOrManager();
+    }
+
+    // ========================================
+    // ESCALATIONS
+    // ========================================
+    match /escalations/{escalationId} {
+      // Users can read their own escalations
+      // Admins/Managers can read all
+      allow read: if isSignedIn() &&
+                     (isOwner(resource.data.userId) || isAdminOrManager());
+
+      // Users can create escalations
+      allow create: if isSignedIn() &&
+                       request.resource.data.userId == request.auth.uid;
+
+      // Only admins/managers can update escalations
+      allow update: if isAdminOrManager();
+
+      // Only admins can delete escalations
+      allow delete: if hasRole('Admin');
+    }
+
+    // ========================================
+    // DEFAULT: DENY ALL
+    // ========================================
+    // Any collection not explicitly listed above is denied
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

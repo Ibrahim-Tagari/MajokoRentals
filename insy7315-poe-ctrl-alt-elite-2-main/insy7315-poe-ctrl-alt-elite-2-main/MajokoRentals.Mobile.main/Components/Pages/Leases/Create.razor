@@ -1,0 +1,209 @@
+@page "/leases/create"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Admin,PropertyManager")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Create Lease - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Cancel
+    </button>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h3 class="card-title mb-4">
+            <i class="bi bi-file-earmark-text me-2"></i>Create New Lease
+        </h3>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+            </div>
+        }
+
+        @if (isLoadingData)
+        {
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Loading properties and tenants...</p>
+            </div>
+        }
+        else
+        {
+            <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="mb-3">
+                    <label class="form-label">Property *</label>
+                    <InputSelect @bind-Value="model.PropertyId" class="form-select">
+                        <option value="">-- Select Property --</option>
+                        @foreach (var property in properties)
+                        {
+                            <option value="@property.Id">@property.Name - @property.Address</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.PropertyId)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tenant *</label>
+                    <InputSelect @bind-Value="model.TenantId" class="form-select">
+                        <option value="">-- Select Tenant --</option>
+                        @foreach (var tenant in tenants)
+                        {
+                            <option value="@tenant.Uid">@tenant.FirstName @tenant.LastName (@tenant.Email)</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.TenantId)" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Start Date *</label>
+                        <InputDate @bind-Value="model.StartDate" class="form-control" />
+                        <ValidationMessage For="@(() => model.StartDate)" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">End Date *</label>
+                        <InputDate @bind-Value="model.EndDate" class="form-control" />
+                        <ValidationMessage For="@(() => model.EndDate)" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Monthly Rent (R) *</label>
+                        <InputNumber @bind-Value="model.MonthlyRent" class="form-control" placeholder="5000" />
+                        <ValidationMessage For="@(() => model.MonthlyRent)" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Security Deposit (R) *</label>
+                        <InputNumber @bind-Value="model.SecurityDeposit" class="form-control" placeholder="5000" />
+                        <ValidationMessage For="@(() => model.SecurityDeposit)" />
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Creating Lease...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span>Create Lease</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isSubmitting">
+                        Cancel
+                    </button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private CreateLeaseDto model = new()
+    {
+        StartDate = DateTime.Today,
+        EndDate = DateTime.Today.AddYears(1)
+    };
+
+    private List<PropertyListDto> properties = new();
+    private List<UserProfile> tenants = new();
+    private bool isLoadingData = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoadingData = true;
+            errorMessage = null;
+
+            // Load properties and tenants in parallel
+            var propertiesTask = ApiClient.GetAsync<List<PropertyListDto>>("/api/properties");
+            var tenantsTask = ApiClient.GetAsync<List<UserProfile>>("/api/users?role=Tenant");
+
+            await Task.WhenAll(propertiesTask, tenantsTask);
+
+            properties = await propertiesTask ?? new List<PropertyListDto>();
+            tenants = await tenantsTask ?? new List<UserProfile>();
+
+            // Filter only available properties
+            properties = properties.Where(p => p.Status == PropertyStatus.Available).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingData = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+
+            var result = await ApiClient.PostAsync<CreateLeaseDto, LeaseDto>("/api/leases", model);
+
+            if (result != null)
+            {
+                Navigation.NavigateTo($"/leases/details/{result.Id}");
+            }
+            else
+            {
+                errorMessage = "Failed to create lease. Please try again.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/leases");
+    }
+
+    public class UserProfile
+    {
+        public string Uid { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Role { get; set; } = "";
+    }
+}

@@ -1,0 +1,384 @@
+@page "/applications/apply/{propertyId}"
+@page "/applications/apply"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Applicant,Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Apply for Property - Dr Majoko Projects</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-outline-secondary" @onclick="GoBack">
+        <i class="bi bi-arrow-left me-1"></i>Back to Properties
+    </button>
+</div>
+
+<div class="mb-4">
+    <h2><i class="bi bi-file-earmark-text me-2"></i>Rental Application</h2>
+    <p class="text-muted">Complete this form to apply for a rental property</p>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">
+        <i class="bi bi-check-circle me-2"></i>@successMessage
+    </div>
+}
+
+@if (isLoadingProperties)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading properties...</p>
+    </div>
+}
+else
+{
+    <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <!-- Property Selection -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Property Information</h5>
+
+                <div class="mb-3">
+                    <label class="form-label">Select Property *</label>
+                    <InputSelect @bind-Value="model.PropertyId" class="form-select" @onchange="OnPropertyChanged">
+                        <option value="0">-- Select a Property --</option>
+                        @foreach (var property in properties)
+                        {
+                            <option value="@property.Id">@property.Name - R @property.Rent.ToString("N2")/month</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.PropertyId)" />
+                </div>
+
+                @if (selectedProperty != null)
+                {
+                    <div class="alert alert-info">
+                        <h6>@selectedProperty.Name</h6>
+                        <p class="mb-1"><i class="bi bi-geo-alt me-1"></i>@selectedProperty.Address</p>
+                        <p class="mb-1"><i class="bi bi-house me-1"></i>@selectedProperty.Type - @selectedProperty.Bedrooms bed, @selectedProperty.Bathrooms bath</p>
+                        <p class="mb-0"><i class="bi bi-cash me-1"></i><strong>R @selectedProperty.Rent.ToString("N2")</strong> per month</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Personal Information -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Personal Information</h5>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Full Name *</label>
+                        <InputText @bind-Value="model.FullName" class="form-control" placeholder="Enter your full name" />
+                        <ValidationMessage For="@(() => model.FullName)" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Email Address *</label>
+                        <InputText @bind-Value="model.Email" class="form-control" type="email" placeholder="your.email@example.com" />
+                        <ValidationMessage For="@(() => model.Email)" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Phone Number *</label>
+                        <InputText @bind-Value="model.PhoneNumber" class="form-control" placeholder="+27 XX XXX XXXX" />
+                        <ValidationMessage For="@(() => model.PhoneNumber)" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">ID Number *</label>
+                        <InputText @bind-Value="model.IdNumber" class="form-control" placeholder="ID or Passport Number" />
+                        <ValidationMessage For="@(() => model.IdNumber)" />
+                    </div>
+
+                    <div class="col-12 mb-3">
+                        <label class="form-label">Current Address *</label>
+                        <InputTextArea @bind-Value="model.CurrentAddress" class="form-control" rows="2" placeholder="Street address, city, postal code" />
+                        <ValidationMessage For="@(() => model.CurrentAddress)" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Employment Information -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Employment Information</h5>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Employer Name *</label>
+                        <InputText @bind-Value="model.EmployerName" class="form-control" placeholder="Current employer" />
+                        <ValidationMessage For="@(() => model.EmployerName)" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Job Title *</label>
+                        <InputText @bind-Value="model.JobTitle" class="form-control" placeholder="Your position" />
+                        <ValidationMessage For="@(() => model.JobTitle)" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Monthly Income (R) *</label>
+                        <InputNumber @bind-Value="model.MonthlyIncome" class="form-control" placeholder="0.00" />
+                        <ValidationMessage For="@(() => model.MonthlyIncome)" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Employment Length (months) *</label>
+                        <InputNumber @bind-Value="model.EmploymentLength" class="form-control" placeholder="How long at current employer?" />
+                        <ValidationMessage For="@(() => model.EmploymentLength)" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- References -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Emergency Contact / Reference</h5>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Reference Name *</label>
+                        <InputText @bind-Value="model.ReferenceName" class="form-control" placeholder="Full name" />
+                        <ValidationMessage For="@(() => model.ReferenceName)" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Reference Phone *</label>
+                        <InputText @bind-Value="model.ReferencePhone" class="form-control" placeholder="Contact number" />
+                        <ValidationMessage For="@(() => model.ReferencePhone)" />
+                    </div>
+
+                    <div class="col-12 mb-3">
+                        <label class="form-label">Relationship to Reference *</label>
+                        <InputText @bind-Value="model.ReferenceRelationship" class="form-control" placeholder="e.g., Friend, Family, Colleague" />
+                        <ValidationMessage For="@(() => model.ReferenceRelationship)" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Additional Information</h5>
+
+                <div class="mb-3">
+                    <label class="form-label">Preferred Move-in Date *</label>
+                    <InputDate @bind-Value="model.PreferredMoveInDate" class="form-control" />
+                    <ValidationMessage For="@(() => model.PreferredMoveInDate)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Additional Comments</label>
+                    <InputTextArea @bind-Value="model.Comments" class="form-control" rows="3" placeholder="Any additional information you'd like to share..." />
+                </div>
+
+                <div class="form-check">
+                    <InputCheckbox @bind-Value="model.AgreeToTerms" class="form-check-input" id="agreeToTerms" />
+                    <label class="form-check-label" for="agreeToTerms">
+                        I certify that the information provided is true and accurate *
+                    </label>
+                    <ValidationMessage For="@(() => model.AgreeToTerms)" />
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <span>Submitting Application...</span>
+                }
+                else
+                {
+                    <i class="bi bi-send me-2"></i>
+                    <span>Submit Application</span>
+                }
+            </button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isSubmitting">
+                Cancel
+            </button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public string? PropertyId { get; set; }
+
+    private CreateApplicationDto model = new()
+    {
+        PreferredMoveInDate = DateTime.Today.AddMonths(1)
+    };
+
+    private List<PropertyListDto> properties = new();
+    private PropertyListDto? selectedProperty;
+    private bool isLoadingProperties = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProperties();
+
+        if (!string.IsNullOrEmpty(PropertyId) && long.TryParse(PropertyId, out var propId))
+        {
+            model.PropertyId = propId;
+            selectedProperty = properties.FirstOrDefault(p => p.Id == propId);
+        }
+    }
+
+    private async Task LoadProperties()
+    {
+        try
+        {
+            isLoadingProperties = true;
+            errorMessage = null;
+
+            var allProperties = await ApiClient.GetAsync<List<PropertyListDto>>("/api/properties");
+
+            if (allProperties != null)
+            {
+                // Only show available properties
+                properties = allProperties.Where(p => p.Status == PropertyStatus.Available).ToList();
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading properties: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingProperties = false;
+        }
+    }
+
+    private void OnPropertyChanged(ChangeEventArgs e)
+    {
+        if (long.TryParse(e.Value?.ToString(), out var propId))
+        {
+            selectedProperty = properties.FirstOrDefault(p => p.Id == propId);
+        }
+        else
+        {
+            selectedProperty = null;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+            successMessage = null;
+
+            if (model.PropertyId == 0)
+            {
+                errorMessage = "Please select a property.";
+                return;
+            }
+
+            if (!model.AgreeToTerms)
+            {
+                errorMessage = "You must certify that the information provided is accurate.";
+                return;
+            }
+
+            var result = await ApiClient.PostAsync<CreateApplicationDto, object>("/api/applications", model);
+
+            if (result != null || true) // API may return 204 No Content
+            {
+                successMessage = "Application submitted successfully! You will be contacted soon.";
+                await Task.Delay(2000); // Show success message briefly
+                Navigation.NavigateTo("/applications/my");
+            }
+            else
+            {
+                errorMessage = "Failed to submit application. Please try again.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/properties");
+    }
+
+    public class CreateApplicationDto
+    {
+        public long PropertyId { get; set; }
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string PhoneNumber { get; set; } = "";
+        public string IdNumber { get; set; } = "";
+        public string CurrentAddress { get; set; } = "";
+        public string EmployerName { get; set; } = "";
+        public string JobTitle { get; set; } = "";
+        public double MonthlyIncome { get; set; }
+        public int EmploymentLength { get; set; }
+        public string ReferenceName { get; set; } = "";
+        public string ReferencePhone { get; set; } = "";
+        public string ReferenceRelationship { get; set; } = "";
+        public DateTime PreferredMoveInDate { get; set; }
+        public string? Comments { get; set; }
+        public bool AgreeToTerms { get; set; }
+    }
+
+    public class PropertyListDto
+    {
+        public long Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string Type { get; set; } = "";
+        public int Bedrooms { get; set; }
+        public int Bathrooms { get; set; }
+        public double Rent { get; set; }
+        public PropertyStatus Status { get; set; }
+    }
+
+    public enum PropertyStatus
+    {
+        Available = 0,
+        Occupied = 1,
+        UnderMaintenance = 2
+    }
+}

@@ -1,0 +1,304 @@
+@model MajokoRentals.Core.ViewModels.LeaseDetailsViewModel
+
+@{
+    ViewData["Title"] = "Lease Details";
+}
+
+<div class="mb-4">
+    @if (User.IsInRole("Admin") || User.IsInRole("PropertyManager"))
+    {
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        @if (Model.Status == LeaseStatus.Active && Model.IsExpiringSoon)
+        {
+            <a asp-action="Renew" asp-route-id="@Model.Id" class="btn btn-success">
+                <i class="bi bi-arrow-clockwise me-1"></i>Renew Lease
+            </a>
+        }
+        @if (Model.Status == LeaseStatus.Active)
+        {
+            <a asp-action="Terminate" asp-route-id="@Model.Id" class="btn btn-danger">
+                <i class="bi bi-x-circle me-1"></i>Terminate
+            </a>
+        }
+    }
+</div>
+
+<!-- Lease Status Alerts -->
+@if (Model.IsExpired)
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Lease Expired!</strong> This lease ended on @Model.EndDate.ToString("MMM dd, yyyy").
+    </div>
+}
+else if (Model.IsExpiringSoon && Model.Status == LeaseStatus.Active)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Lease Expiring Soon!</strong> Only @Model.DaysUntilExpiry days remaining.
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Lease Information -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h3 class="card-title mb-4">Lease Information</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <strong>Property:</strong><br />
+                        <a asp-controller="Properties" asp-action="Details" asp-route-id="@Model.PropertyId">@Model.PropertyName</a><br />
+                        <small class="text-muted">@Model.PropertyAddress</small>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Status:</strong><br />
+                        <span class="badge bg-@(Model.Status == LeaseStatus.Active ? "success" : Model.Status == LeaseStatus.Expired || Model.Status == LeaseStatus.Terminated ? "danger" : "warning")">
+                            @Model.Status
+                        </span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Start Date:</strong><br />
+                        @Model.StartDate.ToString("MMM dd, yyyy")
+                    </div>
+                    <div class="col-md-6">
+                        <strong>End Date:</strong><br />
+                        @Model.EndDate.ToString("MMM dd, yyyy")
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Monthly Rent:</strong><br />
+                        <h4 class="text-primary mb-0">R @Model.MonthlyRent.ToString("N2")</h4>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Security Deposit:</strong><br />
+                        R @Model.SecurityDeposit.ToString("N2")
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Duration:</strong><br />
+                        @((Model.EndDate - Model.StartDate).Days / 30) months
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Created:</strong><br />
+                        @Model.CreatedAt.ToString("MMM dd, yyyy")
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.LeaseDocumentUrl))
+                    {
+                        <div class="col-12">
+                            <strong>Lease Document:</strong><br />
+                            <a href="@Model.LeaseDocumentUrl" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-file-pdf me-1"></i>View Document
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Tenant Information -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h3 class="card-title mb-4">Tenant Information</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <strong>Name:</strong><br />
+                        @Model.TenantName
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Email:</strong><br />
+                        <a href="mailto:@Model.TenantEmail">@Model.TenantEmail</a>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Phone:</strong><br />
+                        @Model.TenantPhone
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoices -->
+        @if (Model.Invoices.Any())
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="card-title mb-3">Recent Invoices</h3>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Period</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var invoice in Model.Invoices.Take(10))
+                                {
+                                    <tr>
+                                        <td>@invoice.InvoiceNumber</td>
+                                        <td>@invoice.InvoiceDate.ToString("MMM yyyy")</td>
+                                        <td>R @invoice.Amount.ToString("N2")</td>
+                                        <td>@invoice.DueDate.ToString("MMM dd, yyyy")</td>
+                                        <td>
+                                            <span class="badge bg-@(invoice.Status == PaymentStatus.Paid ? "success" : invoice.Status == PaymentStatus.Overdue ? "danger" : "warning")">
+                                                @invoice.Status
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Maintenance Requests -->
+        @if (Model.MaintenanceRequests.Any())
+        {
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title mb-3">Recent Maintenance Requests</h3>
+                    <div class="list-group">
+                        @foreach (var request in Model.MaintenanceRequests.Take(5))
+                        {
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">@request.Title</h6>
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar me-1"></i>@request.ReportedDate.ToString("MMM dd, yyyy")
+                                            <i class="bi bi-tag ms-2 me-1"></i>@request.Priority
+                                        </small>
+                                    </div>
+                                    <span class="badge bg-@(request.Status == MaintenanceStatus.Resolved ? "success" : request.Status == MaintenanceStatus.InProgress ? "warning" : "secondary")">
+                                        @request.Status
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Lease Timeline -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Lease Timeline</h5>
+                @{
+                    var totalDays = (Model.EndDate - Model.StartDate).TotalDays;
+                    var elapsedDays = (DateTime.Today - Model.StartDate).TotalDays;
+                    var progress = Math.Min(100, Math.Max(0, (elapsedDays / totalDays) * 100));
+
+                    // Determine color based on status
+                    var barColor = "bg-success";
+                    if (Model.IsExpired)
+                    {
+                        barColor = "bg-danger";
+                    }
+                    else if (Model.IsExpiringSoon)
+                    {
+                        barColor = "bg-warning";
+                    }
+                    else if (progress > 75)
+                    {
+                        barColor = "bg-info";
+                    }
+                }
+                <div class="mb-2">
+                    <small class="text-muted">
+                        <i class="bi bi-calendar-event me-1"></i>
+                        <strong>Start:</strong> @Model.StartDate.ToString("MMM dd, yyyy")
+                    </small>
+                    <small class="text-muted float-end">
+                        <strong>End:</strong> @Model.EndDate.ToString("MMM dd, yyyy")
+                        <i class="bi bi-calendar-check ms-1"></i>
+                    </small>
+                </div>
+                <div class="progress mb-3" style="height: 30px;">
+                    <div class="progress-bar @barColor progress-bar-striped @(Model.Status == LeaseStatus.Active && !Model.IsExpired ? "progress-bar-animated" : "")"
+                         role="progressbar"
+                         style="width: @progress%"
+                         aria-valuenow="@progress"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <strong>@((int)progress)% Complete</strong>
+                    </div>
+                </div>
+                <div class="text-center">
+                    @if (Model.Status == LeaseStatus.Active)
+                    {
+                        if (Model.IsExpired)
+                        {
+                            <span class="badge bg-danger">
+                                <i class="bi bi-exclamation-circle me-1"></i>
+                                Lease Expired
+                            </span>
+                        }
+                        else if (Model.IsExpiringSoon)
+                        {
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-clock-history me-1"></i>
+                                @Model.DaysUntilExpiry days remaining
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>
+                                @Model.DaysUntilExpiry days remaining
+                            </span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Status: @Model.Status.ToString()
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Summary -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Financial Summary</h5>
+                <div class="mb-3">
+                    <strong>Total Rent Expected:</strong><br />
+                    @{
+                        var months = ((Model.EndDate - Model.StartDate).Days / 30);
+                        var totalRent = Model.MonthlyRent * months;
+                    }
+                    <h4 class="text-primary">R @totalRent.ToString("N2")</h4>
+                    <small class="text-muted">(@months months × R @Model.MonthlyRent.ToString("N2"))</small>
+                </div>
+                @if (Model.Invoices.Any())
+                {
+                    var paidInvoices = Model.Invoices.Where(i => i.Status == PaymentStatus.Paid).Sum(i => i.AmountPaid);
+                    var pendingAmount = Model.Invoices.Where(i => i.Status != PaymentStatus.Paid).Sum(i => i.Amount);
+
+                    <hr />
+                    <div class="mb-2">
+                        <strong>Paid to Date:</strong><br />
+                        <span class="text-success">R @paidInvoices.ToString("N2")</span>
+                    </div>
+                    <div>
+                        <strong>Pending/Overdue:</strong><br />
+                        <span class="text-warning">R @pendingAmount.ToString("N2")</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

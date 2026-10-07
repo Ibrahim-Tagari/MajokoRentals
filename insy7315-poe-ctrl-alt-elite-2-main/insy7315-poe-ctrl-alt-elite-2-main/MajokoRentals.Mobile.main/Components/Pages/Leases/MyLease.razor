@@ -1,0 +1,273 @@
+@page "/leases/my"
+@using MajokoRentals.Core.DTOs
+@using MajokoRentals.Core.Models
+@using MajokoRentals.Core.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Tenant")]
+@inject IApiClientService ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>My Lease - Dr Majoko Projects</PageTitle>
+
+<div class="mb-4">
+    <h2><i class="bi bi-file-text me-2"></i>My Lease</h2>
+    <p class="text-muted">View your current lease information</p>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading lease information...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+    </div>
+}
+else if (lease != null)
+{
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h4 class="mb-1">@lease.PropertyName</h4>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-geo-alt me-1"></i>@lease.PropertyAddress
+                    </p>
+                </div>
+                <span class="badge bg-@GetStatusBadge(lease.Status) fs-6">
+                    @lease.Status
+                </span>
+            </div>
+
+            <hr />
+
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <strong><i class="bi bi-calendar-range me-2"></i>Lease Period</strong>
+                    <p class="mb-0">@lease.StartDate.ToString("MMM dd, yyyy") - @lease.EndDate.ToString("MMM dd, yyyy")</p>
+                    <small class="text-muted">@GetDaysRemaining() days remaining</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <strong><i class="bi bi-cash me-2"></i>Monthly Rent</strong>
+                    <p class="mb-0 text-primary fs-4">R @lease.MonthlyRent.ToString("N2")</p>
+                </div>
+            </div>
+
+            @if (GetDaysRemaining() <= 60 && GetDaysRemaining() > 0 && lease.Status == LeaseStatus.Active)
+            {
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Lease Expiring Soon!</strong><br />
+                    Your lease will expire in @GetDaysRemaining() days. Please contact the property manager if you wish to renew.
+                </div>
+            }
+            else if (GetDaysRemaining() <= 0 && lease.Status == LeaseStatus.Active)
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle me-2"></i>
+                    <strong>Lease Expired!</strong><br />
+                    Your lease expired @Math.Abs(GetDaysRemaining()) days ago. Please contact the property manager immediately.
+                </div>
+            }
+
+            <div class="d-grid gap-2 mt-4">
+                <a href="/invoices/my" class="btn btn-primary">
+                    <i class="bi bi-receipt me-2"></i>View My Invoices
+                </a>
+                <a href="/maintenance/create" class="btn btn-outline-warning">
+                    <i class="bi bi-tools me-2"></i>Report Maintenance Issue
+                </a>
+                <a href="/properties/details/@lease.PropertyId" class="btn btn-outline-secondary">
+                    <i class="bi bi-building me-2"></i>Property Details
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unpaid Invoices Section -->
+    @if (unpaidInvoices != null && unpaidInvoices.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Unpaid Invoices
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">You have @unpaidInvoices.Count unpaid invoice(s). Please make payment to avoid late fees.</p>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Due Date</th>
+                                <th>Amount Due</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var invoice in unpaidInvoices)
+                            {
+                                <tr class="@(invoice.IsOverdue ? "table-danger" : "")">
+                                    <td>@invoice.InvoiceNumber</td>
+                                    <td>
+                                        @invoice.DueDate.ToString("MMM dd, yyyy")
+                                        @if (invoice.IsOverdue)
+                                        {
+                                            <br /><small class="text-danger">Overdue!</small>
+                                        }
+                                    </td>
+                                    <td><strong>R @invoice.AmountDue.ToString("N2")</strong></td>
+                                    <td>
+                                        <span class="badge bg-@GetInvoiceStatusBadge(invoice.Status)">
+                                            @invoice.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="/payments/paynow/@invoice.Id" class="btn btn-success btn-sm">
+                                            <i class="bi bi-credit-card me-1"></i>Pay Now
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Total Outstanding:</strong> R @unpaidInvoices.Sum(i => i.AmountDue).ToString("N2")
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        You don't have an active lease at the moment.
+    </div>
+}
+
+@code {
+    private LeaseDto? lease;
+    private List<InvoiceDto>? unpaidInvoices;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLease();
+        await LoadUnpaidInvoices();
+    }
+
+    private async Task LoadLease()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            // Get all leases for the current user and find the active one
+            var leases = await ApiClient.GetAsync<List<LeaseDto>>("/api/leases/my");
+
+            if (leases != null && leases.Any())
+            {
+                // Get the active lease, or the most recent one if no active lease
+                lease = leases.FirstOrDefault(l => l.Status == LeaseStatus.Active)
+                    ?? leases.OrderByDescending(l => l.StartDate).FirstOrDefault();
+            }
+
+            if (lease == null)
+            {
+                errorMessage = null; // No error, just no lease
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Unable to connect to the server. Please check your internet connection.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while loading lease: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadUnpaidInvoices()
+    {
+        try
+        {
+            // Get all invoices for the current user
+            var allInvoices = await ApiClient.GetAsync<List<InvoiceDto>>("/api/invoices");
+
+            if (allInvoices != null)
+            {
+                // Filter for unpaid invoices (Pending, Overdue, or PartiallyPaid)
+                unpaidInvoices = allInvoices
+                    .Where(i => i.Status != "Paid" && i.AmountDue > 0)
+                    .OrderBy(i => i.DueDate)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Don't show error for invoices, just log it
+            Console.WriteLine($"Error loading invoices: {ex.Message}");
+        }
+    }
+
+    private int GetDaysRemaining()
+    {
+        if (lease == null) return 0;
+        return (lease.EndDate - DateTime.UtcNow).Days;
+    }
+
+    private string GetStatusBadge(LeaseStatus status)
+    {
+        return status switch
+        {
+            LeaseStatus.Active => "success",
+            LeaseStatus.PendingRenewal => "warning",
+            LeaseStatus.Draft => "secondary",
+            LeaseStatus.Expired => "danger",
+            LeaseStatus.Terminated => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    private string GetInvoiceStatusBadge(string status)
+    {
+        return status switch
+        {
+            "Paid" => "success",
+            "PartiallyPaid" => "warning",
+            "Pending" => "warning",
+            "Overdue" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    // Invoice DTO class
+    public class InvoiceDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string InvoiceNumber { get; set; } = string.Empty;
+        public DateTime DueDate { get; set; }
+        public double AmountDue { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public bool IsOverdue { get; set; }
+    }
+}

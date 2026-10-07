@@ -1,0 +1,314 @@
+@model MajokoRentals.Models.ViewModels.ChatConversationViewModel
+
+@{
+    ViewData["Title"] = Model.Session.Subject;
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Sidebar with session info -->
+            <div class="card shadow mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Chat Info</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Subject:</strong><br />@Model.Session.Subject</p>
+                    <p><strong>Status:</strong><br />
+                        @if (Model.Session.ApprovalStatus == MajokoRentals.Core.Models.ApprovalStatus.Pending)
+                        {
+                            <span class="badge bg-warning text-dark">Pending Approval</span>
+                        }
+                        else if (Model.Session.ApprovalStatus == MajokoRentals.Core.Models.ApprovalStatus.Approved)
+                        {
+                            <span class="badge bg-success">Approved</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Rejected</span>
+                        }
+                    </p>
+                    <p><strong>Priority:</strong><br />
+                        @switch (Model.Session.Priority)
+                        {
+                            case MajokoRentals.Core.Models.SessionPriority.Urgent:
+                                <span class="badge bg-danger">URGENT</span>
+                                break;
+                            case MajokoRentals.Core.Models.SessionPriority.High:
+                                <span class="badge bg-warning">HIGH</span>
+                                break;
+                            case MajokoRentals.Core.Models.SessionPriority.Normal:
+                                <span class="badge bg-info">NORMAL</span>
+                                break;
+                        }
+                    </p>
+                    <hr />
+                    <p><strong>Participants:</strong></p>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-person-fill"></i> @Model.Session.InitiatorName</li>
+                        <li><i class="bi bi-person"></i> @Model.Session.ParticipantName</li>
+                    </ul>
+                    <hr />
+                    <p><strong>Created:</strong><br />
+                        <small>@Model.Session.RequestedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                    </p>
+                    @if (Model.Session.RelatedPropertyName != null)
+                    {
+                        <hr />
+                        <p><strong>Related Property:</strong><br />
+                            @Model.Session.RelatedPropertyName
+                        </p>
+                    }
+                </div>
+                @if (Model.CanEndSession && Model.Session.IsActive)
+                {
+                    <div class="card-footer">
+                        <button class="btn btn-danger btn-sm w-100" id="btnEndSession">
+                            <i class="bi bi-x-circle"></i> End Conversation
+                        </button>
+                    </div>
+                }
+            </div>
+
+            <a asp-action="MyChats" class="btn btn-secondary w-100">
+                <i class="bi bi-arrow-left"></i> Back to Chats
+            </a>
+        </div>
+
+        <div class="col-md-9">
+            <!-- Main chat area -->
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-chat-dots"></i> @Model.Session.Subject</h5>
+                    @if (!Model.Session.IsActive)
+                    {
+                        <span class="badge bg-secondary">Closed</span>
+                    }
+                </div>
+
+                <div class="card-body" style="height: 500px; overflow-y: auto;" id="chatMessages">
+                    @if (Model.Session.ApprovalStatus == MajokoRentals.Core.Models.ApprovalStatus.Pending)
+                    {
+                        <div class="alert alert-warning text-center">
+                            <i class="bi bi-hourglass-split"></i>
+                            <p class="mb-0">This chat request is pending approval.</p>
+                            @if (Model.Session.ParticipantId == Model.CurrentUserId)
+                            {
+                                <small>Please review and approve or reject this request.</small>
+                                <div class="mt-2">
+                                    <a asp-action="PendingRequests" class="btn btn-sm btn-warning">
+                                        Review Request
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (Model.Session.ApprovalStatus == MajokoRentals.Core.Models.ApprovalStatus.Rejected)
+                    {
+                        <div class="alert alert-danger text-center">
+                            <i class="bi bi-x-circle"></i>
+                            <p class="mb-0">This chat request was rejected.</p>
+                            @if (!string.IsNullOrEmpty(Model.Session.RejectionReason))
+                            {
+                                <small><strong>Reason:</strong> @Model.Session.RejectionReason</small>
+                            }
+                        </div>
+                    }
+
+                    @foreach (var message in Model.Messages)
+                    {
+                        var isCurrentUser = message.SenderId == Model.CurrentUserId;
+                        <div class="message-container @(isCurrentUser ? "text-end" : "text-start") mb-3">
+                            <div class="d-inline-block" style="max-width: 70%;">
+                                @if (!isCurrentUser)
+                                {
+                                    <small class="text-muted"><strong>@message.SenderName</strong></small>
+                                }
+                                <div class="@(isCurrentUser ? "bg-primary" : "message-received-bubble") p-3 rounded">
+                                    <p class="mb-0">@message.Content</p>
+                                </div>
+                                <small class="text-muted">
+                                    @message.SentAt.ToString("MMM dd, HH:mm")
+                                    @if (!isCurrentUser && message.IsRead)
+                                    {
+                                        <i class="bi bi-check-all text-accent" title="Read"></i>
+                                    }
+                                </small>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (Model.CanSendMessages)
+                {
+                    <div class="card-footer">
+                        <form id="sendMessageForm">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="messageContent"
+                                       placeholder="Type your message..." required />
+                                <button class="btn btn-primary" type="submit" id="btnSendMessage">
+                                    <i class="bi bi-send"></i> Send
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                }
+                else
+                {
+                    <div class="card-footer bg-light">
+                        <p class="text-muted text-center mb-0">
+                            <i class="bi bi-lock"></i>
+                            @if (Model.Session.ApprovalStatus == MajokoRentals.Core.Models.ApprovalStatus.Pending)
+                            {
+                                <span>Waiting for approval to send messages</span>
+                            }
+                            else if (!Model.Session.IsActive)
+                            {
+                                <span>This conversation has ended</span>
+                            }
+                            else
+                            {
+                                <span>You cannot send messages in this conversation</span>
+                            }
+                        </p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const sessionId = '@Model.Session.Id';
+        const currentUserId = '@Model.CurrentUserId';
+
+        $(document).ready(function () {
+            // Scroll to bottom of chat
+            function scrollToBottom() {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            scrollToBottom();
+
+            // Send message
+            $('#sendMessageForm').submit(function (e) {
+                e.preventDefault();
+
+                const content = $('#messageContent').val().trim();
+                if (!content) return;
+
+                const button = $('#btnSendMessage');
+                button.prop('disabled', true).html('<i class="bi bi-hourglass"></i> Sending...');
+
+                $.ajax({
+                    url: '@Url.Action("SendMessage", "Messaging")',
+                    type: 'POST',
+                    data: {
+                        sessionId: sessionId,
+                        content: content,
+                        messageType: 'Text',
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            // Add message to chat
+                            const messageHtml = `
+                                <div class="message-container text-end mb-3">
+                                    <div class="d-inline-block" style="max-width: 70%;">
+                                        <div class="bg-primary p-3 rounded">
+                                            <p class="mb-0">${response.message.content}</p>
+                                        </div>
+                                        <small class="text-muted">${response.message.sentAt}</small>
+                                    </div>
+                                </div>
+                            `;
+                            $('#chatMessages').append(messageHtml);
+                            $('#messageContent').val('');
+                            scrollToBottom();
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                        button.prop('disabled', false).html('<i class="bi bi-send"></i> Send');
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('AJAX Error:', status, error);
+                        console.error('Response:', xhr.responseText);
+                        let errorMessage = 'An error occurred. Please try again.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        alert(errorMessage);
+                        button.prop('disabled', false).html('<i class="bi bi-send"></i> Send');
+                    }
+                });
+            });
+
+            // End session
+            $('#btnEndSession').click(function () {
+                if (!confirm('Are you sure you want to end this conversation?')) {
+                    return;
+                }
+
+                const button = $(this);
+                button.prop('disabled', true).html('<i class="bi bi-hourglass"></i> Ending...');
+
+                $.ajax({
+                    url: '@Url.Action("EndSession", "Messaging")',
+                    type: 'POST',
+                    data: {
+                        sessionId: sessionId,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            window.location.href = '@Url.Action("MyChats", "Messaging")';
+                        } else {
+                            alert('Error: ' + response.message);
+                            button.prop('disabled', false).html('<i class="bi bi-x-circle"></i> End Conversation');
+                        }
+                    },
+                    error: function () {
+                        alert('An error occurred. Please try again.');
+                        button.prop('disabled', false).html('<i class="bi bi-x-circle"></i> End Conversation');
+                    }
+                });
+            });
+
+            // Auto-refresh messages every 10 seconds
+            let lastMessageCount = @Model.Messages.Count;
+            setInterval(function () {
+                // Only refresh if user is not typing
+                if (!$('#messageContent').is(':focus')) {
+                    $.ajax({
+                        url: '@Url.Action("Conversation", "Messaging")',
+                        type: 'GET',
+                        data: { id: sessionId },
+                        success: function (html) {
+                            // Extract messages from response and check if there are new ones
+                            const tempDiv = $('<div>').html(html);
+                            const newMessageCount = tempDiv.find('.message-container').length;
+
+                            if (newMessageCount > lastMessageCount) {
+                                // New messages available - update the chat area
+                                const newMessages = tempDiv.find('#chatMessages').html();
+                                $('#chatMessages').html(newMessages);
+                                lastMessageCount = newMessageCount;
+                                scrollToBottom();
+                            }
+                        },
+                        error: function () {
+                            console.log('Failed to refresh messages');
+                        }
+                    });
+                }
+            }, 10000);
+        });
+    </script>
+}
+
+@* Add CSRF token *@
+<form method="post" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
